@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { apiFetch } from "@/lib/api";
 
 type Order = {
   id: string;
@@ -19,36 +20,51 @@ export default function AdminOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ visible: false, message: '' });
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    apiFetch("/api/auth/me")
       .then((data) => {
         if (!data.user || data.user.role !== "ADMIN") router.push("/");
-      });
+      })
+      .catch(() => router.push("/"));
 
-    fetch("/api/admin/orders")
-      .then((r) => r.json())
+    apiFetch("/api/admin/orders")
       .then(setOrders)
+      .catch((e) => {
+        setToast({ visible: true, message: e.message || "Failed to load orders" });
+        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      })
       .finally(() => setLoading(false));
   }, [router]);
 
   async function updateStatus(orderId: string, status: string) {
-    await fetch(`/api/admin/orders/${orderId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-    );
+    try {
+      await apiFetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+      );
+      setToast({ visible: true, message: "Order status updated" });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+    } catch (e: any) {
+      setToast({ visible: true, message: e.message || "Failed to update status" });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+    }
   }
 
   if (loading) return <LoadingSpinner text="Loading orders..." />;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 w-full">
+    <>
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-[100] px-4 py-2 bg-inverse-surface text-inverse-on-surface rounded shadow-xl animate-in fade-in">
+          {toast.message}
+        </div>
+      )}
+      <div className="max-w-5xl mx-auto px-4 py-8 w-full">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">All Orders</h1>
         <span className="text-sm font-semibold text-blue-600 bg-blue-100 px-3 py-1 rounded">Admin</span>
@@ -84,5 +100,6 @@ export default function AdminOrdersPage() {
         ))}
       </div>
     </div>
+    </>
   );
 }

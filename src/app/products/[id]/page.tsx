@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import gsap from "gsap";
+import { apiFetch } from "@/lib/api";
+import { useCart } from "@/context/CartContext";
 
 type Product = {
   id: string;
@@ -23,13 +25,11 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { addToCart: addToCartContext } = useCart();
+  const [toast, setToast] = useState({ visible: false, message: '' });
 
   useEffect(() => {
-    fetch(`/api/products/${id}`)
-      .then((r) => {
-        if (!r.ok) throw new Error("Product not found");
-        return r.json();
-      })
+    apiFetch(`/api/products/${id}`)
       .then(setProduct)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -38,24 +38,13 @@ export default function ProductDetailPage() {
   async function addToCart() {
     if (!product) return;
 
-    window.dispatchEvent(new Event("cartUpdated"));
-
-    const res = await fetch("/api/cart", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: product.id, quantity: 1 }),
-    });
-
-    if (res.status === 401) {
-      router.push("/login");
-      return;
-    }
-
-    if (res.ok) {
-      alert("Added to cart!");
-    } else {
-      const data = await res.json();
-      alert(data.error || "Failed to add");
+    try {
+      await addToCartContext(product.id);
+      setToast({ visible: true, message: 'Added to bag!' });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+    } catch (e: any) {
+      setToast({ visible: true, message: e.message || 'Failed to add to bag' });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
     }
   }
 
@@ -82,7 +71,13 @@ export default function ProductDetailPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <>
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-[100] px-4 py-2 bg-inverse-surface text-inverse-on-surface rounded shadow-xl animate-in fade-in">
+          {toast.message}
+        </div>
+      )}
+      <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow overflow-hidden md:flex">
         <div className="md:w-1/2 aspect-square bg-gray-100">
           {product.imageUrl ? (
@@ -121,5 +116,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

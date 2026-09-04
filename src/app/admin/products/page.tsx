@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 type Category = { id: string; name: string };
 
@@ -20,8 +21,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     // Check if user is admin
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    apiFetch("/api/auth/me")
       .then((data) => {
         if (!data.user || data.user.role !== "ADMIN") {
           router.push("/");
@@ -29,10 +29,9 @@ export default function AdminProductsPage() {
       })
       .catch(() => router.push("/"));
 
-    fetch("/api/categories")
-      .then((r) => r.json())
+    apiFetch("/api/categories")
       .then(setCategories)
-      .catch(console.error);
+      .catch((e) => setError("Failed to load categories"));
   }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -42,9 +41,8 @@ export default function AdminProductsPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/products", {
+      await apiFetch("/api/products", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           description,
@@ -55,13 +53,6 @@ export default function AdminProductsPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Failed to create product");
-        setLoading(false);
-        return;
-      }
-
       setSuccess("Product created successfully!");
       setName("");
       setDescription("");
@@ -69,9 +60,9 @@ export default function AdminProductsPage() {
       setImageUrl("");
       setStock("0");
       setCategoryId("");
-      setLoading(false);
-    } catch {
-      setError("Something went wrong");
+    } catch (e: any) {
+      setError(e.message || "Failed to create product");
+    } finally {
       setLoading(false);
     }
   }

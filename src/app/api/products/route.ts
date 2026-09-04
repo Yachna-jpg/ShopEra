@@ -50,7 +50,10 @@ export async function POST(req: NextRequest) {
     }
 
     const product = await prisma.product.create({
-      data: parsed.data,
+      data: {
+        ...parsed.data,
+        slug: parsed.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''),
+      },
       include: { category: true },
     });
 
