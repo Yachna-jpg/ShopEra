@@ -62,6 +62,13 @@ export default function Navbar() {
               >
                 Orders
               </Link>
+              <Link
+                href="/profile"
+                className={`transition-colors ${isActive("/profile") ? "text-on-surface font-bold border-b-2 border-primary pb-1" : "text-on-surface-variant hover:text-on-surface"
+                  }`}
+              >
+                My Profile
+              </Link>
             </>
           )}
           {user?.role === "ADMIN" && (
@@ -102,20 +109,22 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-full bg-surface-container animate-pulse"></div>
           ) : user ? (
             <div className="flex items-center ml-2 gap-3">
-              {(user as any).image ? (
-                <img
-                  src={(user as any).image}
-                  alt={user.name || "Avatar"}
-                  className="w-8 h-8 rounded-full border border-outline object-cover"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs">
-                  {user.name?.[0]?.toUpperCase() || "U"}
-                </div>
-              )}
-              <span className="hidden sm:inline font-label-md text-label-md text-on-surface font-semibold">
-                Hi, {user.name}
-              </span>
+              <Link href="/profile" className="flex items-center gap-2 hover:opacity-85 transition-opacity" title="Manage Profile & Address">
+                {(user as any).image ? (
+                  <img
+                    src={(user as any).image}
+                    alt={user.name || "Avatar"}
+                    className="w-8 h-8 rounded-full border border-outline object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs">
+                    {user.name?.[0]?.toUpperCase() || "U"}
+                  </div>
+                )}
+                <span className="hidden sm:inline font-label-md text-label-md text-on-surface font-semibold">
+                  Hi, {user.name}
+                </span>
+              </Link>
               <button
                 onClick={logout}
                 className="font-label-sm text-label-sm font-semibold text-secondary hover:underline ml-1"

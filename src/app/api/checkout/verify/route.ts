@@ -9,7 +9,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = await req.json();
+    const { 
+      razorpay_payment_id, 
+      razorpay_order_id, 
+      shippingName,
+      shippingPhone,
+      shippingAddress 
+    } = await req.json();
 
     const cart = await prisma.cart.findUnique({
       where: { userId: user.userId },
@@ -25,6 +31,20 @@ export async function POST(req: Request) {
       0
     );
 
+    // Fetch user detailed address as fallback if not explicitly passed
+    let finalAddress = shippingAddress;
+    let finalPhone = shippingPhone;
+    let finalName = shippingName;
+
+    if (!finalAddress) {
+      const dbUser = await prisma.user.findUnique({ where: { id: user.userId } });
+      if (dbUser) {
+        finalAddress = dbUser.address;
+        finalPhone = finalPhone || dbUser.phone;
+        finalName = finalName || dbUser.name;
+      }
+    }
+
     // Create completed Order in DB
     const order = await prisma.order.create({
       data: {
@@ -33,6 +53,9 @@ export async function POST(req: Request) {
         status: "PAID",
         stripeSessionId: razorpay_order_id || `rzp_ord_${Date.now()}`,
         stripePaymentIntentId: razorpay_payment_id || `rzp_pay_${Date.now()}`,
+        shippingName: finalName || null,
+        shippingPhone: finalPhone || null,
+        shippingAddress: finalAddress || null,
         items: {
           create: cart.items.map((item) => ({
             productId: item.productId,

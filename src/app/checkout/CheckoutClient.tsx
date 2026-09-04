@@ -8,9 +8,15 @@ import Link from "next/link";
 
 export default function CheckoutClient({ user }: { user: any }) {
   const { cart, isLoading, fetchCart } = useCart();
-  const [address, setAddress] = useState(user?.address || "");
   const [name, setName] = useState(user?.name || "");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(user?.phone || "");
+  const [streetAddress, setStreetAddress] = useState(user?.streetAddress || user?.address || "");
+  const [apartment, setApartment] = useState(user?.apartment || "");
+  const [city, setCity] = useState(user?.city || "");
+  const [state, setState] = useState(user?.state || "");
+  const [postalCode, setPostalCode] = useState(user?.postalCode || "");
+  const [country, setCountry] = useState(user?.country || "India");
+
   const [saving, setSaving] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "", type: "error" });
@@ -25,6 +31,24 @@ export default function CheckoutClient({ user }: { user: any }) {
       script.async = true;
       document.body.appendChild(script);
     }
+
+    // Fetch latest user profile details if available
+    apiFetch("/api/user/profile")
+      .then((res: any) => {
+        if (res?.user) {
+          const u = res.user;
+          if (u.name) setName(u.name);
+          if (u.phone) setPhone(u.phone);
+          if (u.streetAddress) setStreetAddress(u.streetAddress);
+          else if (u.address) setStreetAddress(u.address);
+          if (u.apartment) setApartment(u.apartment);
+          if (u.city) setCity(u.city);
+          if (u.state) setState(u.state);
+          if (u.postalCode) setPostalCode(u.postalCode);
+          if (u.country) setCountry(u.country);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const items = cart?.items || [];
@@ -42,22 +66,43 @@ export default function CheckoutClient({ user }: { user: any }) {
       showToast("Please enter your full name.");
       return;
     }
-    if (!address.trim()) {
-      showToast("Please enter your delivery address.");
+    if (!streetAddress.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
+      showToast("Please complete your delivery address (Street, City, State, PIN).");
+      return;
+    }
+    if (!phone.trim()) {
+      showToast("Please enter a contact phone number for delivery updates.");
       return;
     }
 
+    const parts = [
+      streetAddress.trim(),
+      apartment.trim() ? `Apt/Suite: ${apartment.trim()}` : null,
+      city.trim(),
+      `${state.trim()} - ${postalCode.trim()}`,
+      country.trim() || "India"
+    ].filter(Boolean);
+    const fullFormattedAddress = parts.join(", ");
+
     setCheckingOut(true);
     try {
-      // 1. Save user address if changed
-      if (address !== user?.address || name !== user?.name) {
-        setSaving(true);
-        await apiFetch("/api/user/profile", {
-          method: "PUT",
-          body: JSON.stringify({ name, address }),
-        });
-        setSaving(false);
-      }
+      // 1. Save user detailed address
+      setSaving(true);
+      await apiFetch("/api/user/profile", {
+        method: "PUT",
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          streetAddress: streetAddress.trim(),
+          apartment: apartment.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          postalCode: postalCode.trim(),
+          country: country.trim() || "India",
+          address: fullFormattedAddress,
+        }),
+      });
+      setSaving(false);
 
       // 2. Call backend Razorpay order creation endpoint
       const orderData = await apiFetch("/api/checkout", { method: "POST" });
@@ -93,6 +138,9 @@ export default function CheckoutClient({ user }: { user: any }) {
                 razorpay_payment_id: response.razorpay_payment_id || `pay_rzp_${Date.now()}`,
                 razorpay_order_id: response.razorpay_order_id || orderData.orderId,
                 razorpay_signature: response.razorpay_signature || "verified_sig",
+                shippingName: name.trim(),
+                shippingPhone: phone.trim(),
+                shippingAddress: fullFormattedAddress,
               }),
             });
 
@@ -225,45 +273,105 @@ export default function CheckoutClient({ user }: { user: any }) {
             </div>
 
             <div className="flex flex-col gap-space-md pt-2">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Full Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
-                  placeholder="e.g. Sumit Chourasia"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Street Address</label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="h-24 rounded-2xl bg-surface-container-lowest border border-outline/40 p-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none placeholder:text-outline-variant"
-                  placeholder="Apartment, suite, street name, city, state, zip code..."
-                />
-              </div>
-
+              {/* Full Name & Phone Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Contact Phone</label>
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                    placeholder="e.g. Julian Vane"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Contact Phone *</label>
                   <input
                     type="tel"
+                    required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
                     placeholder="+91 98765 43210"
                   />
                 </div>
+              </div>
+
+              {/* Street Address */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Flat / House No. &amp; Street Address *</label>
+                <input
+                  type="text"
+                  required
+                  value={streetAddress}
+                  onChange={(e) => setStreetAddress(e.target.value)}
+                  className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                  placeholder="123 Park Avenue, MG Road"
+                />
+              </div>
+
+              {/* Apartment, Suite, Floor (Optional) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Apartment, Suite, Floor <span className="text-outline font-normal lowercase">(optional)</span></label>
+                <input
+                  type="text"
+                  value={apartment}
+                  onChange={(e) => setApartment(e.target.value)}
+                  className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                  placeholder="Apt 4B, 2nd Floor"
+                />
+              </div>
+
+              {/* City & State */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Email Confirmation</label>
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">City *</label>
                   <input
-                    type="email"
-                    value={user?.email || ""}
-                    disabled
-                    className="h-12 rounded-2xl bg-surface-container-high/50 border border-outline/20 px-4 font-body-md text-on-surface-variant opacity-80 cursor-not-allowed"
+                    type="text"
+                    required
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                    placeholder="Bengaluru"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">State / Province *</label>
+                  <input
+                    type="text"
+                    required
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                    placeholder="Karnataka"
+                  />
+                </div>
+              </div>
+
+              {/* Postal Code & Country */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Postal / PIN Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                    placeholder="560038"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="font-label-sm text-label-sm text-on-surface font-semibold uppercase tracking-wider">Country *</label>
+                  <input
+                    type="text"
+                    required
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="h-12 rounded-2xl bg-surface-container-lowest border border-outline/40 px-4 font-body-md text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-outline-variant"
+                    placeholder="India"
                   />
                 </div>
               </div>

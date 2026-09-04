@@ -9,18 +9,20 @@ export async function POST(req: NextRequest) {
     const parsed = registerSchema.safeParse(body);
  
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]?.message || "Invalid registration data";
       return NextResponse.json(
-        { error: parsed.error.flatten() },
+        { error: firstIssue },
         { status: 400 }
       );
     }
  
-    const { name, email, password } = parsed.data;
+    const { name, password } = parsed.data;
+    const email = parsed.data.email.trim().toLowerCase();
  
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json(
-        { error: "Email already registered" },
+        { error: "Email already registered. Please sign in instead." },
         { status: 400 }
       );
     }

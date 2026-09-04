@@ -1,20 +1,27 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 
 export default function Register() {
   const router = useRouter();
+  const { status } = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [preference, setPreference] = useState('womens');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('Cura7!onStudio$');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', icon: '' });
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      window.location.href = "/";
+    }
+  }, [status]);
 
   const handleTogglePassword = () => setShowPassword(!showPassword);
 
@@ -41,27 +48,30 @@ export default function Register() {
       const data = await response.json();
 
       if (!response.ok) {
-        showToast(data.error || 'Registration failed', 'error');
+        const errMsg = typeof data.error === 'string'
+          ? data.error
+          : (data.error?.fieldErrors ? Object.values(data.error.fieldErrors).flat().join(', ') : 'Registration failed');
+        showToast(errMsg, 'error');
         setIsLoading(false);
         return;
       }
 
       // Log in automatically after registration
+      const cleanEmail = email.trim().toLowerCase();
       const result = await signIn('credentials', {
         redirect: false,
-        email,
+        email: cleanEmail,
         password,
       });
 
       if (result?.error) {
-        showToast('Registration successful, but login failed', 'error');
-        setIsLoading(false);
+        showToast('Account created! Please sign in.', 'check_circle');
+        window.location.href = '/login';
         return;
       }
 
       showToast('Account created successfully. Redirecting...', 'check_circle');
-      router.push('/');
-      router.refresh();
+      window.location.href = '/';
     } catch (err) {
       showToast('An unexpected error occurred', 'error');
       setIsLoading(false);
@@ -71,7 +81,7 @@ export default function Register() {
   return (
     <div className="bg-background font-body-md text-on-surface antialiased selection:bg-primary-fixed selection:text-on-primary-fixed min-h-screen flex flex-col justify-between">
       <header className="w-full py-space-xl flex justify-center items-center">
-        <Link className="flex items-center gap-space-sm" href="1.png">
+        <Link className="flex items-center gap-space-sm" href="/">
           <span className="font-headline-md text-headline-md text-on-surface tracking-tight font-bold">ShopEra</span>
         </Link>
       </header>

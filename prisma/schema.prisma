@@ -14,6 +14,15 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String?
+  phone         String?
+  streetAddress String?
+  apartment     String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?   @default("India")
+  latitude      Float?
+  longitude     Float?
   address       String?
   role          Role      @default(CUSTOMER)
   createdAt     DateTime  @default(now())
@@ -112,6 +121,9 @@ model Order {
   status                OrderStatus @default(PENDING)
   stripeSessionId       String?     @unique
   stripePaymentIntentId String?     @unique
+  shippingName          String?
+  shippingPhone         String?
+  shippingAddress       String?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   user                  User        @relation(fields: [userId], references: [id])

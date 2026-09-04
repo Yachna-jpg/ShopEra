@@ -16,6 +16,7 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "dummy_client_id",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "dummy_client_secret",
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: "Credentials",
@@ -26,8 +27,10 @@ export const authOptions: AuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         
+        const cleanEmail = credentials.email.trim().toLowerCase();
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: cleanEmail },
         });
         
         if (!user || !user.passwordHash) return null;
@@ -51,6 +54,15 @@ export const authOptions: AuthOptions = {
         (session.user as any).id = token.id;
         (session.user as any).role = token.role;
         (session.user as any).address = token.address;
+        (session.user as any).phone = token.phone;
+        (session.user as any).streetAddress = token.streetAddress;
+        (session.user as any).apartment = token.apartment;
+        (session.user as any).city = token.city;
+        (session.user as any).state = token.state;
+        (session.user as any).postalCode = token.postalCode;
+        (session.user as any).country = token.country;
+        (session.user as any).latitude = token.latitude;
+        (session.user as any).longitude = token.longitude;
         (session.user as any).image = token.image;
       }
       return session;
@@ -60,11 +72,29 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         token.role = (user as any).role || "CUSTOMER";
         token.address = (user as any).address || null;
+        token.phone = (user as any).phone || null;
+        token.streetAddress = (user as any).streetAddress || null;
+        token.apartment = (user as any).apartment || null;
+        token.city = (user as any).city || null;
+        token.state = (user as any).state || null;
+        token.postalCode = (user as any).postalCode || null;
+        token.country = (user as any).country || "India";
+        token.latitude = (user as any).latitude || null;
+        token.longitude = (user as any).longitude || null;
         token.image = (user as any).image || (user as any).avatarUrl || null;
       }
       // If we update the profile via the UI and want to refresh the session:
       if (trigger === "update" && session) {
-        if (session.address) token.address = session.address;
+        if (session.address !== undefined) token.address = session.address;
+        if (session.phone !== undefined) token.phone = session.phone;
+        if (session.streetAddress !== undefined) token.streetAddress = session.streetAddress;
+        if (session.apartment !== undefined) token.apartment = session.apartment;
+        if (session.city !== undefined) token.city = session.city;
+        if (session.state !== undefined) token.state = session.state;
+        if (session.postalCode !== undefined) token.postalCode = session.postalCode;
+        if (session.country !== undefined) token.country = session.country;
+        if (session.latitude !== undefined) token.latitude = session.latitude;
+        if (session.longitude !== undefined) token.longitude = session.longitude;
         if (session.name) token.name = session.name;
       }
       return token;

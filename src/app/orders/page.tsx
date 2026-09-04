@@ -27,6 +27,9 @@ type Order = {
   createdAt: string;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
+  shippingName?: string | null;
+  shippingPhone?: string | null;
+  shippingAddress?: string | null;
   items: OrderItem[];
 };
 
@@ -465,10 +468,14 @@ export default function OrdersPage() {
 
                 <div className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 flex flex-col gap-1">
                   <span className="font-label-sm text-label-sm font-bold text-on-surface uppercase tracking-wider">
-                    Delivery Speed
+                    Delivery Shipping Address
                   </span>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">Complimentary 2-Day Express Delivery</p>
-                  <p className="font-caption text-caption text-secondary font-bold mt-1">Estimated Arrival: 2-3 Days</p>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant font-medium">
+                    {selectedOrder.shippingName || "Valued Customer"} {selectedOrder.shippingPhone ? `(${selectedOrder.shippingPhone})` : ""}
+                  </p>
+                  <p className="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    {selectedOrder.shippingAddress || "Express Courier Delivery Address"}
+                  </p>
                 </div>
               </div>
 

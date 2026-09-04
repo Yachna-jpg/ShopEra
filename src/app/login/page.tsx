@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { status } = useSession();
+
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('jane@example.com');
-  const [password, setPassword] = useState('CuratedWardrobe2025!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', icon: '' });
 
@@ -20,6 +23,27 @@ export default function Login() {
     }, 3500);
   };
 
+  useEffect(() => {
+    if (status === "authenticated") {
+      window.location.href = "/";
+    }
+  }, [status]);
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      if (errorParam === 'OAuthAccountNotLinked') {
+        showToast('Account already exists with this email. Please log in with password or Google.', 'warning');
+      } else if (errorParam === 'OAuthCallback' || errorParam === 'Callback') {
+        showToast('Google authentication failed. Please try again.', 'error');
+      } else if (errorParam === 'CredentialsSignin') {
+        showToast('Invalid email or password.', 'error');
+      } else {
+        showToast(`Authentication error: ${errorParam}`, 'error');
+      }
+    }
+  }, [searchParams]);
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -27,19 +51,18 @@ export default function Login() {
     try {
       const result = await signIn('credentials', {
         redirect: false,
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (result?.error) {
-        showToast(result.error || 'Login failed', 'error');
+        showToast('Invalid email or password.', 'error');
         setIsLoading(false);
         return;
       }
 
-      showToast('Welcome back. Redirecting to your curation...', 'check_circle');
-      router.push('/');
-      router.refresh();
+      showToast('Welcome back. Redirecting...', 'check_circle');
+      window.location.href = '/';
     } catch (err) {
       showToast('An unexpected error occurred', 'error');
       setIsLoading(false);
@@ -293,5 +316,13 @@ export default function Login() {
         <p>© 2025 ShopEra Inc. All rights reserved.</p>
       </footer>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginContent />
+    </Suspense>
   );
 }
