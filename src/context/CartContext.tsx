@@ -33,6 +33,8 @@ type CartContextType = {
   updateItem: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   fetchCart: () => Promise<void>;
+  getItemQuantity: (productId: string) => number;
+  getItemInCart: (productId: string) => CartItem | undefined;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -42,7 +44,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  const cartCount = cart?.items.reduce((acc, item) => acc + item.quantity, 0) || 0;
+  const cartCount = Array.isArray(cart?.items) 
+    ? cart.items.reduce((acc, item) => acc + (item.quantity || 0), 0) 
+    : 0;
 
   async function fetchCart() {
     if (!user) {
@@ -54,9 +58,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       const data = await apiFetch("/api/cart");
-      setCart(data);
+      if (data && Array.isArray(data.items)) {
+        setCart(data);
+      } else {
+        setCart(null);
+      }
     } catch (error) {
       console.error("Failed to fetch cart", error);
+      setCart(null);
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +75,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     fetchCart();
   }, [user]);
 
+  function getItemInCart(productId: string): CartItem | undefined {
+    if (!cart || !Array.isArray(cart.items)) return undefined;
+    return cart.items.find((item) => item.productId === productId);
+  }
+
+  function getItemQuantity(productId: string): number {
+    const item = getItemInCart(productId);
+    return item ? item.quantity : 0;
+  }
+
   async function addToCart(productId: string, quantity: number = 1) {
     if (!user) throw new Error("Must be logged in to add to cart");
     
@@ -73,32 +92,50 @@ export function CartProvider({ children }: { children: ReactNode }) {
       method: "POST",
       body: JSON.stringify({ productId, quantity }),
     });
-    setCart(data);
+    if (data && Array.isArray(data.items)) {
+      setCart(data);
+    }
   }
 
   async function updateItem(itemId: string, quantity: number) {
     if (!user) return;
     
-    // In a real implementation we would call a PUT endpoint, e.g. /api/cart/items/[id]
+    if (quantity <= 0) {
+      return removeItem(itemId);
+    }
+
     const data = await apiFetch(`/api/cart/items/${itemId}`, {
       method: "PUT",
       body: JSON.stringify({ quantity }),
     });
-    setCart(data);
+    if (data && Array.isArray(data.items)) {
+      setCart(data);
+    }
   }
 
   async function removeItem(itemId: string) {
     if (!user) return;
     
-    // In a real implementation we would call a DELETE endpoint
     const data = await apiFetch(`/api/cart/items/${itemId}`, {
       method: "DELETE",
     });
-    setCart(data);
+    if (data && Array.isArray(data.items)) {
+      setCart(data);
+    }
   }
 
   return (
-    <CartContext.Provider value={{ cart, cartCount, isLoading, addToCart, updateItem, removeItem, fetchCart }}>
+    <CartContext.Provider value={{ 
+      cart, 
+      cartCount, 
+      isLoading, 
+      addToCart, 
+      updateItem, 
+      removeItem, 
+      fetchCart,
+      getItemQuantity,
+      getItemInCart
+    }}>
       {children}
     </CartContext.Provider>
   );

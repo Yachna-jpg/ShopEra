@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ProfileModal from "@/components/ProfileModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,10 +31,9 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <AuthProvider>
           <CartProvider>
-            {/* The user has their own header/footer in page.tsx right now, 
-                but we'll keep the Next.js layout structure as is just in case 
-                other pages use Navbar. */}
+            <Navbar />
             <main className="flex-1">{children}</main>
+            <ProfileModal />
           </CartProvider>
         </AuthProvider>
       </body>

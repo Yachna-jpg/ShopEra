@@ -3,15 +3,20 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { apiFetch } from '@/lib/api';
+import ProductQuickViewModal, { QuickViewProduct } from '@/components/ProductQuickViewModal';
+import ProductCardClient from '@/app/products/ProductCardClient';
 
 export default function Home() {
+  const router = useRouter();
   const { user, logout } = useAuth();
-  const { cartCount, addToCart } = useCart();
-  const [toast, setToast] = useState({ visible: false, message: '' });
+  const { cartCount, addToCart, updateItem, getItemInCart, getItemQuantity } = useCart();
+  const [toast, setToast] = useState<{ visible: boolean; message: string; type?: string }>({ visible: false, message: '', type: 'success' });
   const [products, setProducts] = useState<any[]>([]);
+  const [quickViewProduct, setQuickViewProduct] = useState<QuickViewProduct | null>(null);
 
   useEffect(() => {
     apiFetch('/api/products')
@@ -19,21 +24,70 @@ export default function Home() {
       .catch(console.error);
   }, []);
 
-  const handleAddToCart = async (id: string) => {
+  const handleOpenQuickView = (prodData: any) => {
+    setQuickViewProduct({
+      id: prodData.id || "prod_1",
+      name: prodData.name || "REY Urban Minimal Backpack",
+      price: prodData.price || 14800,
+      originalPrice: prodData.originalPrice || 19000,
+      description: prodData.description || "Thoughtfully designed everyday apparel and artisan lifestyle goods, rooted in conscious craft and understated Scandinavian elegance.",
+      imageUrl: prodData.imageUrl || "https://lh3.googleusercontent.com/aida-public/AB6AXuBtZtKj2bSkyr39P5H-X5X0Q8jpzGfUCwV-lCPcwLJwGVgXvwB4J0SqVrXcLc1GFcVDk9QVvJWZo4YudT879PcCXEPV0SR7hVsSZ2rotDDTTIiRNwqjEElmEjofxwzi-DgXA4TFZ2lqukAKJTMqj0PVi2qFxD1wOKaW9_YT2mPJSsSSr_ymgSBNGVAXx6NBTOHn0UDq-IYQz9nifWBGVP4OgmrRi8qfAZekbjM5lrz--ZJKTDO_KxKW",
+      galleryImages: prodData.imageUrl ? [
+        prodData.imageUrl,
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuBRapaIz_mrvA0-7C7qaAAQ7V4lXgbkBt96Tc5lD0bOBhpst7_L7DOlMO5hNODRLb-uB75LwJtvV6hwJkPfvKvfPbrmqa0l_-_mwdG1_AlfK3y1tjBNunwmmD--a6PuBCQvesdYRczxZWx1xK4oyMIiwFexR9PVNXMjZACxcZRymWUtxVAfNewIPqDyyCcqzCOTf16t0pICWpSVYSoMPIoRF_siI5UecXbxjQUTEYv0vpfrwdj5N20y",
+        "https://lh3.googleusercontent.com/aida-public/AB6AXuD4x8qcF_r_vDvCHBFzjZ6VQ57H1IfnT4bp8ZrcuN7L1VAyoXZfrxt2j7dSeKAVDWW4HMQoosHsj8XKEPCZtPygC9CWicc1DvZkBdpcynPzDhgq0LdhkfH3nviqP4VAUHiItRvnl2g_nnsFKU24JYV8lAw6mnEZexlgfJ48A-3yQgA3cKwpoVdh6lNIV_B51jg0rgs-d9aIpm6PbdDFA9uwyxK19-ChkEYES5WnF57Te7aumZ5Mcadx"
+      ] : [],
+      category: typeof prodData.category === "object" ? prodData.category?.name : (prodData.category || "Carry Essentials"),
+      rating: 4.9,
+      reviewsCount: 128,
+      colors: ["#273D33", "#33312E", "#8A5A44"],
+    });
+  };
+
+  const showToast = (msg: string, type = 'success') => {
+    setToast({ visible: true, message: msg, type });
+    setTimeout(() => setToast({ visible: false, message: '', type: 'success' }), 4500);
+  };
+
+  const handleAddToCart = async (id: string, name?: string) => {
+    if (!user) {
+      showToast('Please sign in to add items to your cart', 'login');
+      return;
+    }
     try {
       await addToCart(id);
-      setToast({ visible: true, message: 'Added to bag!' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      const displayName = name || 'Item';
+      showToast(`Added "${displayName}" to bag`, 'success');
     } catch (e: any) {
-      setToast({ visible: true, message: e.message || 'Failed to add to bag' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      showToast(e.message || 'Failed to add to bag', 'error');
+    }
+  };
+
+  const handleUpdateQuantity = async (productId: string, newQty: number, name?: string) => {
+    if (!user) {
+      showToast('Please sign in to modify your cart', 'login');
+      return;
+    }
+    const item = getItemInCart(productId);
+    if (!item) {
+      if (newQty > 0) handleAddToCart(productId, name);
+      return;
+    }
+    try {
+      await updateItem(item.id, newQty);
+      if (newQty === 0) {
+        showToast(`Removed item from bag`, 'info');
+      } else {
+        showToast(`Updated quantity to ${newQty}`, 'success');
+      }
+    } catch (e: any) {
+      showToast(e.message || 'Failed to update quantity', 'error');
     }
   };
 
   const handleWishlist = async (id: string) => {
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to add to wishlist' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      showToast('Please log in to manage your wishlist', 'login');
       return;
     }
     try {
@@ -41,36 +95,56 @@ export default function Home() {
         method: 'POST',
         body: JSON.stringify({ productId: id })
       });
-      setToast({ visible: true, message: res.message || 'Updated wishlist!' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      showToast(res.message || 'Updated wishlist!', 'info');
     } catch (e: any) {
-      setToast({ visible: true, message: e.message || 'Failed to update wishlist' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      showToast(e.message || 'Failed to update wishlist', 'error');
     }
   };
 
   return (
     <>
+      {/* Product Added Feedback Notification Card */}
       {toast.visible && (
-        <div className="fixed bottom-6 right-6 z-[100] px-4 py-2 bg-inverse-surface text-inverse-on-surface rounded shadow-xl animate-in fade-in">
-          {toast.message}
+        <div className="fixed bottom-6 right-6 z-[150] px-5 py-4 bg-inverse-surface text-inverse-on-surface rounded-2xl shadow-2xl animate-in fade-in flex items-center gap-4 border border-outline-variant/30 max-w-md">
+          <span className={`material-symbols-outlined text-[24px] ${toast.type === 'login' ? 'text-tertiary' : 'text-secondary'}`}>
+            {toast.type === 'login' ? 'account_circle' : 'check_circle'}
+          </span>
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="font-label-md font-bold truncate">{toast.message}</span>
+            <span className="font-caption text-caption text-inverse-on-surface/80">Item added &amp; cart updated</span>
+          </div>
+          {toast.type === 'login' ? (
+            <button
+              onClick={() => router.push('/login')}
+              className="px-3.5 py-1.5 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm font-semibold hover:bg-secondary/90 transition-colors whitespace-nowrap"
+            >
+              Sign In
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => router.push('/cart')}
+                className="px-3 py-1 rounded-full bg-surface/20 text-inverse-on-surface hover:bg-surface/30 font-label-sm text-label-sm font-semibold transition-colors whitespace-nowrap"
+              >
+                View Bag
+              </button>
+              <button
+                onClick={() => router.push('/checkout')}
+                className="px-3.5 py-1 rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm font-semibold hover:bg-secondary/90 transition-colors whitespace-nowrap"
+              >
+                Checkout
+              </button>
+            </div>
+          )}
         </div>
       )}
-      <header className="fixed top-0 left-0 right-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(45,49,46,0.04)]"><div className="h-20 max-w-[1440px] mx-auto px-margin-mobile lg:px-margin-desktop flex items-center justify-between gap-gutter-desktop"><div className="flex items-center gap-space-sm flex-shrink-0"><img alt="ShopEra Brand Logo" className="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WEub6MF4zc3twJfsx7SquOQpbntq-E-5gYikuD8Fscd5KMDdHJ2Jojzr0DByaCOIHgJ5yWFHhZuceObDeAzMMFohnmxj52f6IwRiPIuHKwAXof-k63dEqnBUkSy_H37cqMVk2RMWUKyr2qM7oPhrEezTfmi5bPq9X5vwBfzpoWwNgGAsngGXWmdFREs-VmkSNwEL5fBO4i9mhJFPNxHgmx8Z4wpOD3E5mySzAc7D-YDyXe9tcXFqzt1g"/><span className="font-headline-sm text-headline-sm text-on-surface tracking-tight font-bold">ShopEra</span></div><nav className="hidden md:flex items-center gap-space-xl" data-active-classes="text-on-surface font-semibold"><Link aria-current="page" className="transition-colors text-on-surface font-semibold" data-path="shop" href="#">Shop</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="templates" href="#">Templates</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="language" href="#">Language</Link><Link className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="categories" href="#">Categories</Link></nav><div className="flex items-center gap-space-xs sm:gap-space-sm flex-shrink-0"><button aria-label="Search" className="w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors" type="button"><span className="material-symbols-outlined text-[22px]">search</span></button><Link aria-label="Wishlist" className="relative w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors" data-path="wishlist" href="#"><span className="material-symbols-outlined text-[22px]">favorite</span></Link><Link aria-label="Shopping Cart" className="relative w-10 h-10 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors" data-path="shopping-cart" href="/cart"><span className="material-symbols-outlined text-[22px]">shopping_bag</span>{cartCount > 0 && <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-secondary text-on-secondary rounded-full font-caption text-caption flex items-center justify-center">{cartCount}</span>}</Link>
-      {user ? (
-        <div className="flex items-center ml-2">
-          <span className="mr-2 text-sm">Hi, {user.name}</span>
-          <button onClick={logout} className="text-sm font-semibold text-secondary hover:underline">Logout</button>
-        </div>
-      ) : (
-        <Link href="/login" className="ml-2 text-sm font-semibold hover:underline">Sign In</Link>
-      )}
-      </div></div></header><main className="w-full pt-20 bg-background min-h-screen"><div className="flex flex-col w-full">
+
+      <main className="w-full pt-20 bg-background min-h-screen"><div className="flex flex-col w-full">
 {/*  1. HERO SECTION  */}
-<section className="relative w-full max-w-[1440px] mx-auto px-margin-mobile lg:px-margin-desktop py-space-xl lg:py-space-3xl overflow-hidden">
-<div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desktop items-center">
+<section className="relative w-full max-w-[1440px] mx-auto px-margin-mobile lg:px-margin-desktop pt-space-xs lg:pt-space-sm pb-space-xl lg:pb-space-2xl overflow-hidden">
+<div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desktop items-start">
 {/*  Left Column: Copy & CTAs  */}
-<div className="lg:col-span-6 flex flex-col items-start gap-space-md z-10">
+<div className="lg:col-span-6 flex flex-col items-start gap-space-md z-10 pt-1 lg:pt-3">
 <div className="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-secondary-fixed/40 text-on-secondary-fixed text-label-sm font-label-sm">
 <span>In this season, find the best</span>
 <span className="text-secondary text-base">✨</span>
@@ -212,100 +286,150 @@ export default function Home() {
 </a>
 </div>
 <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter-desktop">
-{/*  Product 1  */}
-<div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
-<img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="REY Urban Minimal Backpack in deep charcoal matte water-resistant canvas with sleek gunmetal hardware, standing on light gray concrete" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtZtKj2bSkyr39P5H-X5X0Q8jpzGfUCwV-lCPcwLJwGVgXvwB4J0SqVrXcLc1GFcVDk9QVvJWZo4YudT879PcCXEPV0SR7hVsSZ2rotDDTTIiRNwqjEElmEjofxwzi-DgXA4TFZ2lqukAKJTMqj0PVi2qFxD1wOKaW9_YT2mPJSsSSr_ymgSBNGVAXx6NBTOHn0UDq-IYQz9nifWBGVP4OgmrRi8qfAZekbjM5lrz--ZJKTDO_KxKW"/>
-<span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $42</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
-<span className="material-symbols-outlined text-[20px]">favorite</span>
-</button>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
-{/*  Color Swatches  */}
-<div className="flex items-center gap-1.5">
-<span className="w-4 h-4 rounded-full bg-[#2F3330] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
-<span className="w-4 h-4 rounded-full bg-[#8FA89B]"></span>
-<span className="w-4 h-4 rounded-full bg-[#C8A287]"></span>
-</div>
-<div className="flex items-baseline justify-between mt-1">
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">REY Urban Minimal Backpack</h3>
-</div>
-<div className="flex items-center justify-between">
-<div className="flex items-baseline gap-2">
-<span className="font-headline-sm text-headline-sm text-on-surface font-bold">$148</span>
-<span className="font-body-sm text-body-sm text-tertiary line-through">$190</span>
-</div>
-<div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
-<span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
-<span className="font-bold">4.9</span>
-<span className="text-tertiary">(128)</span>
-</div>
-</div>
-</div>
-</div>
-{/*  Product 2  */}
-<div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
-<img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="Ergonomic Daily Sling Bag in muted olive green with waterproof zipper tape, worn across the chest of a traveler in an airy train terminal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRapaIz_mrvA0-7C7qaAAQ7V4lXgbkBt96Tc5lD0bOBhpst7_L7DOlMO5hNODRLb-uB75LwJtvV6hwJkPfvKvfPbrmqa0l_-_mwdG1_AlfK3y1tjBNunwmmD--a6PuBCQvesdYRczxZWx1xK4oyMIiwFexR9PVNXMjZACxcZRymWUtxVAfNewIPqDyyCcqzCOTf16t0pICWpSVYSoMPIoRF_siI5UecXbxjQUTEYv0vpfrwdj5N20y"/>
-<span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $25</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
-<span className="material-symbols-outlined text-[20px]">favorite</span>
-</button>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
-<div className="flex items-center gap-1.5">
-<span className="w-4 h-4 rounded-full bg-[#4C6358] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
-<span className="w-4 h-4 rounded-full bg-[#1A1A1A]"></span>
-<span className="w-4 h-4 rounded-full bg-[#E79A78]"></span>
-</div>
-<div className="flex items-baseline justify-between mt-1">
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">Ergonomic Daily Sling Bag</h3>
-</div>
-<div className="flex items-center justify-between">
-<div className="flex items-baseline gap-2">
-<span className="font-headline-sm text-headline-sm text-on-surface font-bold">$85</span>
-<span className="font-body-sm text-body-sm text-tertiary line-through">$110</span>
-</div>
-<div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
-<span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
-<span className="font-bold">4.8</span>
-<span className="text-tertiary">(94)</span>
-</div>
-</div>
-</div>
-</div>
-{/*  Product 3  */}
-<div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
-<img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="Weekender Canvas Duffle Bag in heavy sand duck canvas with dark bridle leather handles and brass buckles, styled on a polished hardwood bench" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4x8qcF_r_vDvCHBFzjZ6VQ57H1IfnT4bp8ZrcuN7L1VAyoXZfrxt2j7dSeKAVDWW4HMQoosHsj8XKEPCZtPygC9CWicc1DvZkBdpcynPzDhgq0LdhkfH3nviqP4VAUHiItRvnl2g_nnsFKU24JYV8lAw6mnEZexlgfJ48A-3yQgA3cKwpoVdh6lNIV_B51jg0rgs-d9aIpm6PbdDFA9uwyxK19-ChkEYES5WnF57Te7aumZ5Mcadx"/>
-<span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-caption text-caption font-semibold">Bestseller</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
-<span className="material-symbols-outlined text-[20px]">favorite</span>
-</button>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
-<div className="flex items-center gap-1.5">
-<span className="w-4 h-4 rounded-full bg-[#D6CEBF] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
-<span className="w-4 h-4 rounded-full bg-[#273D33]"></span>
-<span className="w-4 h-4 rounded-full bg-[#727974]"></span>
-</div>
-<div className="flex items-baseline justify-between mt-1">
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">Weekender Canvas Duffle</h3>
-</div>
-<div className="flex items-center justify-between">
-<div className="flex items-baseline gap-2">
-<span className="font-headline-sm text-headline-sm text-on-surface font-bold">$185</span>
-<span className="font-body-sm text-body-sm text-tertiary line-through">$220</span>
-</div>
-<div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
-<span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
-<span className="font-bold">5.0</span>
-<span className="text-tertiary">(210)</span>
-</div>
-</div>
-</div>
-</div>
+{products && products.length > 0 ? (
+  products.slice(0, 6).map((product) => (
+    <ProductCardClient
+      key={product.id}
+      product={product}
+      onQuickView={handleOpenQuickView}
+    />
+  ))
+) : (
+  <>
+    {/*  Product 1  */}
+    <div
+      onClick={() =>
+        handleOpenQuickView({
+          id: "prod_1",
+          name: "REY Urban Minimal Backpack",
+          price: 14800,
+          originalPrice: 19000,
+          description: "Thoughtfully designed everyday apparel and artisan lifestyle goods, rooted in conscious craft and understated Scandinavian elegance.",
+          imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBtZtKj2bSkyr39P5H-X5X0Q8jpzGfUCwV-lCPcwLJwGVgXvwB4J0SqVrXcLc1GFcVDk9QVvJWZo4YudT879PcCXEPV0SR7hVsSZ2rotDDTTIiRNwqjEElmEjofxwzi-DgXA4TFZ2lqukAKJTMqj0PVi2qFxD1wOKaW9_YT2mPJSsSSr_ymgSBNGVAXx6NBTOHn0UDq-IYQz9nifWBGVP4OgmrRi8qfAZekbjM5lrz--ZJKTDO_KxKW",
+          category: "Carry Essentials",
+        })
+      }
+      className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm cursor-pointer"
+    >
+      <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+        <img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="REY Urban Minimal Backpack in deep charcoal matte water-resistant canvas with sleek gunmetal hardware, standing on light gray concrete" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBtZtKj2bSkyr39P5H-X5X0Q8jpzGfUCwV-lCPcwLJwGVgXvwB4J0SqVrXcLc1GFcVDk9QVvJWZo4YudT879PcCXEPV0SR7hVsSZ2rotDDTTIiRNwqjEElmEjofxwzi-DgXA4TFZ2lqukAKJTMqj0PVi2qFxD1wOKaW9_YT2mPJSsSSr_ymgSBNGVAXx6NBTOHn0UDq-IYQz9nifWBGVP4OgmrRi8qfAZekbjM5lrz--ZJKTDO_KxKW"/>
+        <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $42</span>
+        <button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+          <span className="material-symbols-outlined text-[20px]">favorite</span>
+        </button>
+      </div>
+      <div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-full bg-[#2F3330] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
+          <span className="w-4 h-4 rounded-full bg-[#8FA89B]"></span>
+          <span className="w-4 h-4 rounded-full bg-[#C8A287]"></span>
+        </div>
+        <div className="flex items-baseline justify-between mt-1">
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">REY Urban Minimal Backpack</h3>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$148</span>
+            <span className="font-body-sm text-body-sm text-tertiary line-through">$190</span>
+          </div>
+          <div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+            <span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
+            <span className="font-bold">4.9</span>
+            <span className="text-tertiary">(128)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {/*  Product 2  */}
+    <div
+      onClick={() =>
+        handleOpenQuickView({
+          id: "prod_2",
+          name: "Ergonomic Daily Sling Bag",
+          price: 8500,
+          originalPrice: 11000,
+          description: "Muted olive green daily sling bag crafted with waterproof zipper tape and ergonomic cross-body strap.",
+          imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBRapaIz_mrvA0-7C7qaAAQ7V4lXgbkBt96Tc5lD0bOBhpst7_L7DOlMO5hNODRLb-uB75LwJtvV6hwJkPfvKvfPbrmqa0l_-_mwdG1_AlfK3y1tjBNunwmmD--a6PuBCQvesdYRczxZWx1xK4oyMIiwFexR9PVNXMjZACxcZRymWUtxVAfNewIPqDyyCcqzCOTf16t0pICWpSVYSoMPIoRF_siI5UecXbxjQUTEYv0vpfrwdj5N20y",
+          category: "Carry Essentials",
+        })
+      }
+      className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm cursor-pointer"
+    >
+      <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+        <img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="Ergonomic Daily Sling Bag in muted olive green with waterproof zipper tape, worn across the chest of a traveler in an airy train terminal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRapaIz_mrvA0-7C7qaAAQ7V4lXgbkBt96Tc5lD0bOBhpst7_L7DOlMO5hNODRLb-uB75LwJtvV6hwJkPfvKvfPbrmqa0l_-_mwdG1_AlfK3y1tjBNunwmmD--a6PuBCQvesdYRczxZWx1xK4oyMIiwFexR9PVNXMjZACxcZRymWUtxVAfNewIPqDyyCcqzCOTf16t0pICWpSVYSoMPIoRF_siI5UecXbxjQUTEYv0vpfrwdj5N20y"/>
+        <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $25</span>
+        <button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+          <span className="material-symbols-outlined text-[20px]">favorite</span>
+        </button>
+      </div>
+      <div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-full bg-[#4C6358] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
+          <span className="w-4 h-4 rounded-full bg-[#1A1A1A]"></span>
+          <span className="w-4 h-4 rounded-full bg-[#E79A78]"></span>
+        </div>
+        <div className="flex items-baseline justify-between mt-1">
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">Ergonomic Daily Sling Bag</h3>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$85</span>
+            <span className="font-body-sm text-body-sm text-tertiary line-through">$110</span>
+          </div>
+          <div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+            <span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
+            <span className="font-bold">4.8</span>
+            <span className="text-tertiary">(94)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {/*  Product 3  */}
+    <div
+      onClick={() =>
+        handleOpenQuickView({
+          id: "prod_3",
+          name: "Weekender Canvas Duffle",
+          price: 18500,
+          originalPrice: 22000,
+          description: "Heavy sand duck canvas duffle bag with dark bridle leather handles and brass hardware.",
+          imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuD4x8qcF_r_vDvCHBFzjZ6VQ57H1IfnT4bp8ZrcuN7L1VAyoXZfrxt2j7dSeKAVDWW4HMQoosHsj8XKEPCZtPygC9CWicc1DvZkBdpcynPzDhgq0LdhkfH3nviqP4VAUHiItRvnl2g_nnsFKU24JYV8lAw6mnEZexlgfJ48A-3yQgA3cKwpoVdh6lNIV_B51jg0rgs-d9aIpm6PbdDFA9uwyxK19-ChkEYES5WnF57Te7aumZ5Mcadx",
+          category: "Travel Essentials",
+        })
+      }
+      className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm cursor-pointer"
+    >
+      <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+        <img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" data-alt="Weekender Canvas Duffle Bag in heavy sand duck canvas with dark bridle leather handles and brass buckles, styled on a polished hardwood bench" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4x8qcF_r_vDvCHBFzjZ6VQ57H1IfnT4bp8ZrcuN7L1VAyoXZfrxt2j7dSeKAVDWW4HMQoosHsj8XKEPCZtPygC9CWicc1DvZkBdpcynPzDhgq0LdhkfH3nviqP4VAUHiItRvnl2g_nnsFKU24JYV8lAw6mnEZexlgfJ48A-3yQgA3cKwpoVdh6lNIV_B51jg0rgs-d9aIpm6PbdDFA9uwyxK19-ChkEYES5WnF57Te7aumZ5Mcadx"/>
+        <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-caption text-caption font-semibold">Bestseller</span>
+        <button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+          <span className="material-symbols-outlined text-[20px]">favorite</span>
+        </button>
+      </div>
+      <div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-full bg-[#D6CEBF] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
+          <span className="w-4 h-4 rounded-full bg-[#273D33]"></span>
+          <span className="w-4 h-4 rounded-full bg-[#727974]"></span>
+        </div>
+        <div className="flex items-baseline justify-between mt-1">
+          <h3 className="font-headline-sm text-headline-sm text-on-surface font-medium">Weekender Canvas Duffle</h3>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$185</span>
+            <span className="font-body-sm text-body-sm text-tertiary line-through">$220</span>
+          </div>
+          <div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+            <span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
+            <span className="font-bold">5.0</span>
+            <span className="text-tertiary">(210)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+)}
 </div>
 </section>
 {/*  4. FEATURE ICONS ROW  */}
@@ -542,17 +666,12 @@ export default function Home() {
 <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Model wearing luxurious Cashmere Minimalist Crewneck in oatmeal heather with relaxed fit silhouette in a warm lit Scandinavian interior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeNyzws5QeEe-z7PU_LMdrtQqtVJHfUB0WGTcQTGTkKRePb9aA_tHJkK1PYDOQQyijrqZyEgzRK1I9Kxnf65nc7X7SjGCTaB8YYz8IoKM6Eem2wzNDQLBKKZR1zXalD_jKalYihMLrxOCS-rJP6pG4R1Gqzvno9MnkHH1lrCctAaiZ06xWV5U06vQ1dyAlS0m3CYQKF6S2pUzd8CZbxIoIYLbIi9zX8nzPrpzJV_k1xn8f3vYWnPp3"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $40</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={() => handleWishlist((products.find(p => p.slug.includes('cashmere')) || products[0])?.id)} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
-<div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-<button className="w-full h-11 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-lg" type="button">
-<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-<span>Quick Add to Bag</span>
-</button>
 </div>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#E5DFD7] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#3F4843]"></span>
@@ -571,23 +690,62 @@ export default function Home() {
 </div>
 </div>
 </div>
+{(() => {
+  const target = products.find(p => p.slug.includes('cashmere')) || products[0];
+  const targetId = target?.id;
+  const qty = targetId ? getItemQuantity(targetId) : 0;
+  if (qty > 0) {
+    return (
+      <div className="w-full h-11 mt-3 rounded-full bg-surface-container-high border border-outline-variant/40 flex items-center justify-between px-2 shadow-inner">
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty - 1, 'Cashmere Minimalist Crewneck'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Decrease quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">remove</span>
+        </button>
+        <div className="flex items-center gap-1">
+          <span className="font-label-sm text-label-sm font-bold text-on-surface">In Bag:</span>
+          <span className="w-6 h-6 rounded-full bg-secondary text-on-secondary font-bold text-xs flex items-center justify-center">{qty}</span>
+        </div>
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty + 1, 'Cashmere Minimalist Crewneck'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Increase quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">add</span>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button 
+      onClick={(e) => {
+        e.preventDefault();
+        if (target) handleAddToCart(target.id, 'Cashmere Minimalist Crewneck');
+      }}
+      className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+      <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+      <span>Add to Bag</span>
+    </button>
+  );
+})()}
+
+</div>
 </div>
 {/*  Best Seller 2  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
 <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Woman wearing oversized relaxed linen blazer in raw natural flax color with tortoiseshell buttons against a warm textured wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBx36-bjx3I_fI9saNt-4zrzPzBjDCoyHZ4yzNgPCUP3wwXw7Al-2SvAr2tgQOgs_10P8TJfJd2BztANss9IuA5JsBV8ZxKFQnjq4hrvsORf3Op3zF_-vu7BppGz8n21mUC_nbSrzp3qqcBbYWCTlgffJtJ9iFSlT6Bxz5_TkgnF_VgRhejcriXs2wJ_GCY3lXKg5EZh11R0oAxhJZ8LcYHOWJHHhC3jTS45RW1LDMtezADxoCWHsnZ"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $45</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={() => handleWishlist((products.find(p => p.slug.includes('blazer')) || products[1] || products[0])?.id)} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
-<div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-<button className="w-full h-11 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-lg" type="button">
-<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-<span>Quick Add to Bag</span>
-</button>
 </div>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#D4C8B8] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#FAF9F6]"></span>
@@ -606,23 +764,61 @@ export default function Home() {
 </div>
 </div>
 </div>
+{(() => {
+  const target = products.find(p => p.slug.includes('blazer')) || products[1] || products[0];
+  const targetId = target?.id;
+  const qty = targetId ? getItemQuantity(targetId) : 0;
+  if (qty > 0) {
+    return (
+      <div className="w-full h-11 mt-3 rounded-full bg-surface-container-high border border-outline-variant/40 flex items-center justify-between px-2 shadow-inner">
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty - 1, 'Oversized Linen Relaxed Blazer'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Decrease quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">remove</span>
+        </button>
+        <div className="flex items-center gap-1">
+          <span className="font-label-sm text-label-sm font-bold text-on-surface">In Bag:</span>
+          <span className="w-6 h-6 rounded-full bg-secondary text-on-secondary font-bold text-xs flex items-center justify-center">{qty}</span>
+        </div>
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty + 1, 'Oversized Linen Relaxed Blazer'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Increase quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">add</span>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button 
+      onClick={(e) => {
+        e.preventDefault();
+        if (target) handleAddToCart(target.id, 'Oversized Linen Relaxed Blazer');
+      }}
+      className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+      <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+      <span>Add to Bag</span>
+    </button>
+  );
+})()}
+</div>
 </div>
 {/*  Best Seller 3  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
 <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Man wearing deep pine green Velvet Structured Overshirt layered open over a crisp off-white crewneck, relaxed contemporary style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRdAD5_5eD0YuRNK80GJR6JLU6L6BL7-mHx7aDxHXUipS7gV9n7Cd_fpTUk1_mUdZcypN7xGjKH9BvmBuuHiQ6j0CiQuDklMlgF_yInl6sILEI6XYV_RpUlWzA-XQaedF23rgrOU2K8FgY2jx0RZCRdpI6azWSQgWryp7GHngYED7Kk_HAxucnkS2UvF3yin5L7-pxPhzPc0FpMnBRThYHfKYHI60mtUngEAQFpLtYY1hD2wdIopUf"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Save $30</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={() => handleWishlist((products.find(p => p.slug.includes('overshirt')) || products[2] || products[0])?.id)} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
-<div className="absolute inset-x-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-<button className="w-full h-11 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-lg" type="button">
-<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-<span>Quick Add to Bag</span>
-</button>
 </div>
-</div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#273D33] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#8C4E32]"></span>
@@ -641,6 +837,50 @@ export default function Home() {
 </div>
 </div>
 </div>
+{(() => {
+  const target = products.find(p => p.slug.includes('overshirt')) || products[2] || products[0];
+  const targetId = target?.id;
+  const qty = targetId ? getItemQuantity(targetId) : 0;
+  if (qty > 0) {
+    return (
+      <div className="w-full h-11 mt-3 rounded-full bg-surface-container-high border border-outline-variant/40 flex items-center justify-between px-2 shadow-inner">
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty - 1, 'Velvet Structured Overshirt'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Decrease quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">remove</span>
+        </button>
+        <div className="flex items-center gap-1">
+          <span className="font-label-sm text-label-sm font-bold text-on-surface">In Bag:</span>
+          <span className="w-6 h-6 rounded-full bg-secondary text-on-secondary font-bold text-xs flex items-center justify-center">{qty}</span>
+        </div>
+        <button
+          onClick={(e) => { e.preventDefault(); if (targetId) handleUpdateQuantity(targetId, qty + 1, 'Velvet Structured Overshirt'); }}
+          className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors"
+          title="Increase quantity"
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[16px]">add</span>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button 
+      onClick={(e) => {
+        e.preventDefault();
+        if (target) handleAddToCart(target.id, 'Velvet Structured Overshirt');
+      }}
+      className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+      <span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+      <span>Add to Bag</span>
+    </button>
+  );
+})()}
+
+</div>
 </div>
 </div>
 </section>
@@ -656,10 +896,10 @@ export default function Home() {
 </div>
 {/*  Right side: Content  */}
 <div className="lg:col-span-6 p-space-xl lg:p-space-3xl flex flex-col justify-center items-start gap-space-sm">
-<div className="flex items-center gap-space-xs">
-<img alt="ShopEra Mark" className="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WEub6MF4zc3twJfsx7SquOQpbntq-E-5gYikuD8Fscd5KMDdHJ2Jojzr0DByaCOIHgJ5yWFHhZuceObDeAzMMFohnmxj52f6IwRiPIuHKwAXof-k63dEqnBUkSy_H37cqMVk2RMWUKyr2qM7oPhrEezTfmi5bPq9X5vwBfzpoWwNgGAsngGXWmdFREs-VmkSNwEL5fBO4i9mhJFPNxHgmx8Z4wpOD3E5mySzAc7D-YDyXe9tcXFqzt1g"/>
-<span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">ShopEra Junior</span>
-</div>
+        <div className="flex items-center gap-space-xs">
+          <img alt="ShopEra Mark" className="h-6 w-auto object-contain" src="/logo.png"/>
+          <span className="font-label-sm text-label-sm uppercase tracking-widest text-secondary font-bold">ShopEra Junior</span>
+        </div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface leading-snug">
           Special offer in kids products
         </h2>
@@ -789,20 +1029,55 @@ export default function Home() {
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter-desktop">
 {/*  Item 1  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('utility') || p.slug.includes('jacket')) || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-1',
+      name: 'Chore Canvas Utility Jacket',
+      price: 13500,
+      originalPrice: 17000,
+      description: 'Crafted from heavy 12oz organic cotton canvas, reinforced triple-stitched seams, and spacious utility drop pockets for everyday durability.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDf6xN6HnLz_pgOfL0VoCjyd9taI5ypvAXCSvvDdzgV8UfSFnKCv3ENaVwjBL1VV7D0IWr_nyRAVoiUYE1Z6JN6G3Y3EQ2th_D7MLoopRuv0VnB0LlKayo98qtZmDrctobo7_LvTIgnUfOeu7DidmzRTuE_ii6NR7TG1YTK1ad_Qlgu3U5Db2PNGIp7-MK9ngY7cLqsBOMn0GCU7zLlm4S0GY3I2se1Kh_Yii6Gw5Fgb5kuA69FMsfn',
+      category: 'Men',
+      rating: 4.9,
+      reviewsCount: 88,
+      colors: ['#354C41', '#1A1C1A', '#C8A287']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Organic Cotton Chore Jacket in dark forest green with spacious patch pockets worn with casual beige knit shirt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDf6xN6HnLz_pgOfL0VoCjyd9taI5ypvAXCSvvDdzgV8UfSFnKCv3ENaVwjBL1VV7D0IWr_nyRAVoiUYE1Z6JN6G3Y3EQ2th_D7MLoopRuv0VnB0LlKayo98qtZmDrctobo7_LvTIgnUfOeu7DidmzRTuE_ii6NR7TG1YTK1ad_Qlgu3U5Db2PNGIp7-MK9ngY7cLqsBOMn0GCU7zLlm4S0GY3I2se1Kh_Yii6Gw5Fgb5kuA69FMsfn"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-surface/90 backdrop-blur-md text-on-surface font-caption text-caption font-semibold">New</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#354C41] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#1A1C1A]"></span>
 <span className="w-4 h-4 rounded-full bg-[#C8A287]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Chore Canvas Utility Jacket</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('utility') || p.slug.includes('jacket')) || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-1',
+      name: 'Chore Canvas Utility Jacket',
+      price: 13500,
+      originalPrice: 17000,
+      description: 'Crafted from heavy 12oz organic cotton canvas, reinforced triple-stitched seams, and spacious utility drop pockets for everyday durability.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDf6xN6HnLz_pgOfL0VoCjyd9taI5ypvAXCSvvDdzgV8UfSFnKCv3ENaVwjBL1VV7D0IWr_nyRAVoiUYE1Z6JN6G3Y3EQ2th_D7MLoopRuv0VnB0LlKayo98qtZmDrctobo7_LvTIgnUfOeu7DidmzRTuE_ii6NR7TG1YTK1ad_Qlgu3U5Db2PNGIp7-MK9ngY7cLqsBOMn0GCU7zLlm4S0GY3I2se1Kh_Yii6Gw5Fgb5kuA69FMsfn',
+      category: 'Men',
+      rating: 4.9,
+      reviewsCount: 88
+    });
+  }}
+>
+Chore Canvas Utility Jacket
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$135</span>
@@ -815,22 +1090,68 @@ export default function Home() {
 </div>
 </div>
 </div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('utility') || p.slug.includes('jacket')) || products[0];
+    if (target) handleAddToCart(target.id, 'Chore Canvas Utility Jacket');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
+</div>
 </div>
 {/*  Item 2  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('hoop') || p.slug.includes('sterling')) || products[1] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-2',
+      name: 'Sculpted Sterling Hoop Set',
+      price: 7200,
+      originalPrice: 9000,
+      description: 'Hand-sculpted 925 sterling silver hoops with hypoallergenic post backs and organic satin finish for everyday understated shimmer.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDkkVqSIED8ueGLdOzoUy96SxEItFXON1MYq3mwsesizeAFuwFvPSZ2yxvIfCF6oODWa2kQjoX4eEk13Lvaq3vtIZEMXQvXiyKf-DCGNvhvLz2uW3al8FidL94WKkKsoJXlvgioTb8OKZMU0OCnYpIFnpER3mYU_K-6Sc9uK-bGi3RZGlu4cDxPL6uKhqn9jl3DWXysqsM3Y4QVlb0SknWu8GrjEhc4yAhfU65NiFtW0bQru7fOtCdC',
+      category: 'Jewelry',
+      rating: 4.7,
+      reviewsCount: 52,
+      colors: ['#D1D5DB', '#E5C158']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Woman wearing sculptural silver hoop earrings and linen high neck blouse, clean minimalist beauty shot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkkVqSIED8ueGLdOzoUy96SxEItFXON1MYq3mwsesizeAFuwFvPSZ2yxvIfCF6oODWa2kQjoX4eEk13Lvaq3vtIZEMXQvXiyKf-DCGNvhvLz2uW3al8FidL94WKkKsoJXlvgioTb8OKZMU0OCnYpIFnpER3mYU_K-6Sc9uK-bGi3RZGlu4cDxPL6uKhqn9jl3DWXysqsM3Y4QVlb0SknWu8GrjEhc4yAhfU65NiFtW0bQru7fOtCdC"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-caption text-caption font-semibold">Sale -20%</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[1] || products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#D1D5DB] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#E5C158]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Sculpted Sterling Hoop Set</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('hoop') || p.slug.includes('sterling')) || products[1] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-2',
+      name: 'Sculpted Sterling Hoop Set',
+      price: 7200,
+      originalPrice: 9000,
+      description: 'Hand-sculpted 925 sterling silver hoops with hypoallergenic post backs and organic satin finish for everyday understated shimmer.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDkkVqSIED8ueGLdOzoUy96SxEItFXON1MYq3mwsesizeAFuwFvPSZ2yxvIfCF6oODWa2kQjoX4eEk13Lvaq3vtIZEMXQvXiyKf-DCGNvhvLz2uW3al8FidL94WKkKsoJXlvgioTb8OKZMU0OCnYpIFnpER3mYU_K-6Sc9uK-bGi3RZGlu4cDxPL6uKhqn9jl3DWXysqsM3Y4QVlb0SknWu8GrjEhc4yAhfU65NiFtW0bQru7fOtCdC',
+      category: 'Jewelry',
+      rating: 4.7,
+      reviewsCount: 52
+    });
+  }}
+>
+Sculpted Sterling Hoop Set
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$72</span>
@@ -843,22 +1164,68 @@ export default function Home() {
 </div>
 </div>
 </div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('hoop') || p.slug.includes('sterling')) || products[1] || products[0];
+    if (target) handleAddToCart(target.id, 'Sculpted Sterling Hoop Set');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
+</div>
 </div>
 {/*  Item 3  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('tencel') || p.slug.includes('shirt')) || products[2] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-3',
+      name: 'Flow Tencel Resort Shirt',
+      price: 9800,
+      originalPrice: 12000,
+      description: 'Ultra-breathable Tencel lyocell weave woven for maximum drape and breathability during warm Mediterranean afternoons.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBBaMiIDV1tEnAwAR1Kmr8n5rC32py_Uv9AEaDeSs_WnTyOSDUmfQvxKs2qhXRU6FnMXoqC_hhVSkWkd4okbm72BsSZsAIy3JYsAmltc99HsckFSeW3BVZ3ZnbiIVgfso2XVyYuMUn_vNcHQzxBtoUu84yP0iWEIqDxbxFQHlM6snG631pSIkhWZ9OwbBkVCJ_CDd5_Hb9ayIuWcT21HCl-pG8d1dUIDpXjY4psNRdiPOd2mCQtytbI',
+      category: 'Men',
+      rating: 4.8,
+      reviewsCount: 142,
+      colors: ['#B3CCBF', '#F4F3F1', '#727974']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Relaxed fit Tencel lyocell button-up shirt in sage mint color draped over a minimalist stone display stand" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBBaMiIDV1tEnAwAR1Kmr8n5rC32py_Uv9AEaDeSs_WnTyOSDUmfQvxKs2qhXRU6FnMXoqC_hhVSkWkd4okbm72BsSZsAIy3JYsAmltc99HsckFSeW3BVZ3ZnbiIVgfso2XVyYuMUn_vNcHQzxBtoUu84yP0iWEIqDxbxFQHlM6snG631pSIkhWZ9OwbBkVCJ_CDd5_Hb9ayIuWcT21HCl-pG8d1dUIDpXjY4psNRdiPOd2mCQtytbI"/>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[2] || products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#B3CCBF] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#F4F3F1]"></span>
 <span className="w-4 h-4 rounded-full bg-[#727974]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Flow Tencel Resort Shirt</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('tencel') || p.slug.includes('shirt')) || products[2] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-3',
+      name: 'Flow Tencel Resort Shirt',
+      price: 9800,
+      originalPrice: 12000,
+      description: 'Ultra-breathable Tencel lyocell weave woven for maximum drape and breathability during warm Mediterranean afternoons.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBBaMiIDV1tEnAwAR1Kmr8n5rC32py_Uv9AEaDeSs_WnTyOSDUmfQvxKs2qhXRU6FnMXoqC_hhVSkWkd4okbm72BsSZsAIy3JYsAmltc99HsckFSeW3BVZ3ZnbiIVgfso2XVyYuMUn_vNcHQzxBtoUu84yP0iWEIqDxbxFQHlM6snG631pSIkhWZ9OwbBkVCJ_CDd5_Hb9ayIuWcT21HCl-pG8d1dUIDpXjY4psNRdiPOd2mCQtytbI',
+      category: 'Men',
+      rating: 4.8,
+      reviewsCount: 142
+    });
+  }}
+>
+Flow Tencel Resort Shirt
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$98</span>
@@ -871,22 +1238,68 @@ export default function Home() {
 </div>
 </div>
 </div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('tencel') || p.slug.includes('shirt')) || products[2] || products[0];
+    if (target) handleAddToCart(target.id, 'Flow Tencel Resort Shirt');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
+</div>
 </div>
 {/*  Item 4  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('loafer') || p.slug.includes('leather')) || products[3] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-4',
+      name: 'Burnished Leather Penny Loafer',
+      price: 21000,
+      originalPrice: 24500,
+      description: 'Hand-burnished full-grain Italian leather penny loafers with Goodyear welted leather soles for decades of sleek formal wear.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDD9XEg3eb_9wTeQfGC4gMrKMweAvDTP-dZK5DVAhsyOufZuVstzQfK36kxtdsoVGBTBNg3Pq2KASUuupl-ZeXoBW_XG9_E6BukwsEVZRu6HenpfwdlgDvTJrPyZdGtH2iZbzHpl0RkMb6e_9B0pmuayawJuWYl-B6d5zOLu6RAs-miywLtU6lCHl4yeMqzduNcoVF5mGv0L7oZMtNy2_-NBqZHUK91YqEo-k1oYzfOAx-0VvxiNhWB',
+      category: 'Footwear',
+      rating: 5.0,
+      reviewsCount: 96,
+      colors: ['#6F371D', '#1A1A1A']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Minimalist handcrafted leather penny loafers in burnished deep cognac brown styled with tailored off-white socks" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDD9XEg3eb_9wTeQfGC4gMrKMweAvDTP-dZK5DVAhsyOufZuVstzQfK36kxtdsoVGBTBNg3Pq2KASUuupl-ZeXoBW_XG9_E6BukwsEVZRu6HenpfwdlgDvTJrPyZdGtH2iZbzHpl0RkMb6e_9B0pmuayawJuWYl-B6d5zOLu6RAs-miywLtU6lCHl4yeMqzduNcoVF5mGv0L7oZMtNy2_-NBqZHUK91YqEo-k1oYzfOAx-0VvxiNhWB"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-caption text-caption font-semibold">Artisan Edition</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[3] || products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#6F371D] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#1A1A1A]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Burnished Leather Penny Loafer</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('loafer') || p.slug.includes('leather')) || products[3] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-4',
+      name: 'Burnished Leather Penny Loafer',
+      price: 21000,
+      originalPrice: 24500,
+      description: 'Hand-burnished full-grain Italian leather penny loafers with Goodyear welted leather soles for decades of sleek formal wear.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDD9XEg3eb_9wTeQfGC4gMrKMweAvDTP-dZK5DVAhsyOufZuVstzQfK36kxtdsoVGBTBNg3Pq2KASUuupl-ZeXoBW_XG9_E6BukwsEVZRu6HenpfwdlgDvTJrPyZdGtH2iZbzHpl0RkMb6e_9B0pmuayawJuWYl-B6d5zOLu6RAs-miywLtU6lCHl4yeMqzduNcoVF5mGv0L7oZMtNy2_-NBqZHUK91YqEo-k1oYzfOAx-0VvxiNhWB',
+      category: 'Footwear',
+      rating: 5.0,
+      reviewsCount: 96
+    });
+  }}
+>
+Burnished Leather Penny Loafer
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$210</span>
@@ -899,22 +1312,68 @@ export default function Home() {
 </div>
 </div>
 </div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('loafer') || p.slug.includes('leather')) || products[3] || products[0];
+    if (target) handleAddToCart(target.id, 'Burnished Leather Penny Loafer');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
+</div>
 </div>
 {/*  Item 5  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('kimono') || p.slug.includes('waffle')) || products[4] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-5',
+      name: 'Waffle Cotton Bath Kimono',
+      price: 11500,
+      originalPrice: 13000,
+      description: 'Lush 100% GOTS-certified organic cotton waffle weave kimono designed for post-sauna lounging and morning coffee rituals.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCcqT5oFb-aGDKX-pFFBQ698Nah0BZey9GfujftMy9jQ48la_WDNmqcmnOakei8T6JA4XaLb5FJicfPcYFQYZsgITHg2W-jj3TcSGoVPvVST19c1oAGm80JKE5hU3Dty78DXTVk9Rk3iSNDudAKJln95xRUAdMgGXPZmtwhCa8UcAQFzxIsW46nA8FY_3xuuNOiZtxLqD-tjoIsOqGZQKUwZvY0UStI9dMONgLwjLKlXatrNX2p_YKU',
+      category: 'Lifestyle',
+      rating: 4.9,
+      reviewsCount: 67,
+      colors: ['#E79A78', '#E9E8E5', '#4C6358']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Organic waffle weave robe in warm clay terracotta folded gently on a clean cedar sauna bench" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcqT5oFb-aGDKX-pFFBQ698Nah0BZey9GfujftMy9jQ48la_WDNmqcmnOakei8T6JA4XaLb5FJicfPcYFQYZsgITHg2W-jj3TcSGoVPvVST19c1oAGm80JKE5hU3Dty78DXTVk9Rk3iSNDudAKJln95xRUAdMgGXPZmtwhCa8UcAQFzxIsW46nA8FY_3xuuNOiZtxLqD-tjoIsOqGZQKUwZvY0UStI9dMONgLwjLKlXatrNX2p_YKU"/>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[4] || products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#E79A78] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#E9E8E5]"></span>
 <span className="w-4 h-4 rounded-full bg-[#4C6358]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Waffle Cotton Bath Kimono</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('kimono') || p.slug.includes('waffle')) || products[4] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-5',
+      name: 'Waffle Cotton Bath Kimono',
+      price: 11500,
+      originalPrice: 13000,
+      description: 'Lush 100% GOTS-certified organic cotton waffle weave kimono designed for post-sauna lounging and morning coffee rituals.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCcqT5oFb-aGDKX-pFFBQ698Nah0BZey9GfujftMy9jQ48la_WDNmqcmnOakei8T6JA4XaLb5FJicfPcYFQYZsgITHg2W-jj3TcSGoVPvVST19c1oAGm80JKE5hU3Dty78DXTVk9Rk3iSNDudAKJln95xRUAdMgGXPZmtwhCa8UcAQFzxIsW46nA8FY_3xuuNOiZtxLqD-tjoIsOqGZQKUwZvY0UStI9dMONgLwjLKlXatrNX2p_YKU',
+      category: 'Lifestyle',
+      rating: 4.9,
+      reviewsCount: 67
+    });
+  }}
+>
+Waffle Cotton Bath Kimono
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$115</span>
@@ -927,23 +1386,69 @@ export default function Home() {
 </div>
 </div>
 </div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('kimono') || p.slug.includes('waffle')) || products[4] || products[0];
+    if (target) handleAddToCart(target.id, 'Waffle Cotton Bath Kimono');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
+</div>
 </div>
 {/*  Item 6  */}
 <div className="group flex flex-col p-space-sm rounded-2xl bg-surface-container-low hover:bg-surface-container transition-all duration-300 shadow-sm">
-<div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant">
+<div 
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('frame') || p.slug.includes('titanium')) || products[5] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-6',
+      name: 'Sculptured Optical Titanium Frames',
+      price: 18000,
+      originalPrice: 21000,
+      description: 'Ultralight Japanese titanium eyewear frames with anti-reflective AR coated demo lenses, engineered for all-day featherweight comfort.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB39h3VF0ORAA7Ykgpfp2-vCt4zPSc4VbBkf9prQc9Csu2RstAaqfuYa_dSWjlh8LDcx-RpUqed5DZ31nf78N39QavYi2TKLml8ZSssi3LlmETuEJSsr3BMD0csQZCgFe5n6Qg9Qv1SmRGjTZuD7Kx4fbZnQK7XIqoGnO0nm0YFtF3DYHwxAeKqdGO2xiHZ7knbNRjtkp5_Hg2jpDFEpo4eDlVsO40iZvcNss9_ccfRp-NMpFWFrTek',
+      category: 'Accessories',
+      rating: 4.8,
+      reviewsCount: 44,
+      colors: ['#D4AF37', '#1A1A1A', '#9CA3AF']
+    });
+  }}
+  className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-surface-variant cursor-pointer"
+>
 <img className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Minimalist titanium optical frames in matte antique gold lying on open architectural coffee table book" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB39h3VF0ORAA7Ykgpfp2-vCt4zPSc4VbBkf9prQc9Csu2RstAaqfuYa_dSWjlh8LDcx-RpUqed5DZ31nf78N39QavYi2TKLml8ZSssi3LlmETuEJSsr3BMD0csQZCgFe5n6Qg9Qv1SmRGjTZuD7Kx4fbZnQK7XIqoGnO0nm0YFtF3DYHwxAeKqdGO2xiHZ7knbNRjtkp5_Hg2jpDFEpo4eDlVsO40iZvcNss9_ccfRp-NMpFWFrTek"/>
 <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-surface/90 backdrop-blur-md text-on-surface font-caption text-caption font-semibold">Low Stock</span>
-<button aria-label="Add to wishlist" className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
+<button aria-label="Add to wishlist" onClick={(e) => { e.stopPropagation(); handleWishlist((products[5] || products[0])?.id); }} className="wishlist-btn absolute top-3 right-3 w-10 h-10 rounded-full bg-surface/85 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-secondary transition-colors" type="button">
 <span className="material-symbols-outlined text-[20px]">favorite</span>
 </button>
 </div>
-<div className="flex flex-col gap-space-xs pt-space-md px-space-xs">
+<div className="flex flex-col gap-space-xs pt-space-md px-space-xs flex-grow justify-between">
+<div>
 <div className="flex items-center gap-1.5">
 <span className="w-4 h-4 rounded-full bg-[#D4AF37] ring-2 ring-[#1A1A1A] ring-offset-1"></span>
 <span className="w-4 h-4 rounded-full bg-[#1A1A1A]"></span>
 <span className="w-4 h-4 rounded-full bg-[#9CA3AF]"></span>
 </div>
-<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1">Ultralight Titanium Spectacles</h3>
+<h3 className="font-headline-sm text-headline-sm text-on-surface font-medium mt-1 cursor-pointer hover:text-primary transition-colors"
+  onClick={() => {
+    const target = products.find(p => p.slug.includes('frame') || p.slug.includes('titanium')) || products[5] || products[0];
+    setQuickViewProduct({
+      id: target?.id || 'item-6',
+      name: 'Sculptured Optical Titanium Frames',
+      price: 18000,
+      originalPrice: 21000,
+      description: 'Ultralight Japanese titanium eyewear frames with anti-reflective AR coated demo lenses, engineered for all-day featherweight comfort.',
+      imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB39h3VF0ORAA7Ykgpfp2-vCt4zPSc4VbBkf9prQc9Csu2RstAaqfuYa_dSWjlh8LDcx-RpUqed5DZ31nf78N39QavYi2TKLml8ZSssi3LlmETuEJSsr3BMD0csQZCgFe5n6Qg9Qv1SmRGjTZuD7Kx4fbZnQK7XIqoGnO0nm0YFtF3DYHwxAeKqdGO2xiHZ7knbNRjtkp5_Hg2jpDFEpo4eDlVsO40iZvcNss9_ccfRp-NMpFWFrTek',
+      category: 'Accessories',
+      rating: 4.8,
+      reviewsCount: 44
+    });
+  }}
+>
+Sculptured Optical Titanium Frames
+</h3>
 <div className="flex items-center justify-between">
 <div className="flex items-baseline gap-2">
 <span className="font-headline-sm text-headline-sm text-on-surface font-bold">$180</span>
@@ -952,9 +1457,20 @@ export default function Home() {
 <div className="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
 <span className="material-symbols-outlined text-[16px] text-secondary" style={{"fontVariationSettings":"'FILL' 1"}}>star</span>
 <span className="font-bold">4.8</span>
-<span className="text-tertiary">(110)</span>
+<span className="text-tertiary">(44)</span>
 </div>
 </div>
+</div>
+<button 
+  onClick={(e) => {
+    e.preventDefault();
+    const target = products.find(p => p.slug.includes('frame') || p.slug.includes('titanium')) || products[5] || products[0];
+    if (target) handleAddToCart(target.id, 'Sculptured Optical Titanium Frames');
+  }}
+  className="w-full h-11 mt-3 rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 shadow-sm hover:bg-inverse-surface/90 transition-colors" type="button">
+<span className="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+<span>Add to Bag</span>
+</button>
 </div>
 </div>
 </div>
@@ -1122,9 +1638,15 @@ export default function Home() {
 </div>
 </div>
 </section>
-{/*  14. INTERACTIVE CLIENT SCRIPT  */}
 
-</div></main><footer className="w-full bg-surface-container-low text-on-surface"><div className="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin-desktop pt-space-4xl pb-space-3xl"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-y-space-2xl gap-x-gutter-desktop"><div className="lg:col-span-2 flex flex-col items-start gap-space-md"><div className="flex items-center gap-space-sm"><img alt="ShopEra Brand Logo" className="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WEub6MF4zc3twJfsx7SquOQpbntq-E-5gYikuD8Fscd5KMDdHJ2Jojzr0DByaCOIHgJ5yWFHhZuceObDeAzMMFohnmxj52f6IwRiPIuHKwAXof-k63dEqnBUkSy_H37cqMVk2RMWUKyr2qM7oPhrEezTfmi5bPq9X5vwBfzpoWwNgGAsngGXWmdFREs-VmkSNwEL5fBO4i9mhJFPNxHgmx8Z4wpOD3E5mySzAc7D-YDyXe9tcXFqzt1g"/><span className="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">ShopEra</span></div><p className="font-body-md text-body-md text-on-surface-variant max-w-sm">Refined fashion &amp; lifestyle essentials crafted for the modern era.</p><div className="w-full max-w-sm mt-space-sm"><p className="font-label-sm text-label-sm text-on-surface uppercase tracking-wider mb-space-xs">Subscribe to our newsletter</p><form className="relative flex items-center w-full"><input className="w-full h-12 rounded-full bg-surface-container-lowest px-space-md pr-28 text-on-surface font-body-sm text-body-sm outline-none placeholder:text-outline-variant focus:ring-1 focus:ring-primary" placeholder="Enter your email" type="email"/><button className="absolute right-1.5 h-9 px-space-md rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm hover:bg-on-surface transition-colors" type="submit">Subscribe</button></form></div></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">About</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="our-story" href="#">Our Story</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="sustainability" href="#">Sustainability</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="artisans" href="#">Artisans</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="careers" href="#">Careers</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Categories</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="women" href="#">Women</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="men" href="#">Men</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="lifestyle" href="#">Lifestyle</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="new-arrivals" href="#">New Arrivals</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Support</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="shipping-and-returns" href="#">Shipping &amp; Returns</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="order-tracking" href="#">Order Tracking</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="size-guide" href="#">Size Guide</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="contact" href="#">Contact Us</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Community</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="editorial-journal" href="#">Editorial Journal</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="ambassadors" href="#">Ambassadors</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="events" href="#">Events</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="membership" href="#">Membership</a></div></div><div className="mt-space-3xl pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant font-caption text-caption"><p>© 2025 ShopEra Inc. All rights reserved.</p><div className="flex items-center gap-space-lg"><a className="hover:text-on-surface transition-colors" data-path="privacy-policy" href="#">Privacy Policy</a><a className="hover:text-on-surface transition-colors" data-path="terms-of-service" href="#">Terms of Service</a></div><div className="flex items-center gap-space-md"><a aria-label="Instagram" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">photo_camera</span></a><a aria-label="Twitter" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">chat</span></a><a aria-label="Pinterest" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">push_pin</span></a><a aria-label="TikTok" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">play_circle</span></a></div></div></div></footer>
+</div></main><footer className="w-full bg-surface-container-low text-on-surface"><div className="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin-desktop pt-space-4xl pb-space-3xl"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-y-space-2xl gap-x-gutter-desktop"><div className="lg:col-span-2 flex flex-col items-start gap-space-md"><div className="flex items-center gap-space-sm"><img alt="ShopEra Brand Logo" className="h-8 w-auto object-contain" src="/logo.png"/><span className="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">ShopEra</span></div><p className="font-body-md text-body-md text-on-surface-variant max-w-sm">Refined fashion &amp; lifestyle essentials crafted for the modern era.</p><div className="w-full max-w-sm mt-space-sm"><p className="font-label-sm text-label-sm text-on-surface uppercase tracking-wider mb-space-xs">Subscribe to our newsletter</p><form className="relative flex items-center w-full"><input className="w-full h-12 rounded-full bg-surface-container-lowest px-space-md pr-28 text-on-surface font-body-sm text-body-sm outline-none placeholder:text-outline-variant focus:ring-1 focus:ring-primary" placeholder="Enter your email" type="email"/><button className="absolute right-1.5 h-9 px-space-md rounded-full bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm hover:bg-on-surface transition-colors" type="submit">Subscribe</button></form></div></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">About</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="our-story" href="#">Our Story</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="sustainability" href="#">Sustainability</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="artisans" href="#">Artisans</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="careers" href="#">Careers</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Categories</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="women" href="#">Women</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="men" href="#">Men</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="lifestyle" href="#">Lifestyle</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="new-arrivals" href="#">New Arrivals</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Support</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="shipping-and-returns" href="#">Shipping &amp; Returns</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="order-tracking" href="#">Order Tracking</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="size-guide" href="#">Size Guide</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="contact" href="#">Contact Us</a></div><div className="flex flex-col gap-space-sm"><span className="font-label-md text-label-md text-on-surface font-semibold">Community</span><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="editorial-journal" href="#">Editorial Journal</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="ambassadors" href="#">Ambassadors</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="events" href="#">Events</a><a className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="membership" href="#">Membership</a></div></div><div className="mt-space-3xl pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant font-caption text-caption"><p>© 2025 ShopEra Inc. All rights reserved.</p><div className="flex items-center gap-space-lg"><a className="hover:text-on-surface transition-colors" data-path="privacy-policy" href="#">Privacy Policy</a><a className="hover:text-on-surface transition-colors" data-path="terms-of-service" href="#">Terms of Service</a></div><div className="flex items-center gap-space-md"><a aria-label="Instagram" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">photo_camera</span></a><a aria-label="Twitter" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">chat</span></a><a aria-label="Pinterest" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">push_pin</span></a><a aria-label="TikTok" className="hover:text-on-surface transition-colors" href="#"><span className="material-symbols-outlined text-[18px]">play_circle</span></a></div></div></div></footer>
+
+      {/* Product Quick View Modal */}
+      <ProductQuickViewModal
+        product={quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+        onAddToCart={(prod) => handleAddToCart(prod.id, prod.name)}
+      />
     </>
   );
 }

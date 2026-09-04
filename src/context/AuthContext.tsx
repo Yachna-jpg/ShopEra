@@ -1,12 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { SessionProvider, useSession, signOut } from "next-auth/react";
+import { createContext, useContext, ReactNode } from "react";
 
 type User = {
   id: string;
   name: string;
   email: string;
   role: string;
+  address?: string | null;
+  image?: string | null;
 } | null;
 
 type AuthContextType = {
@@ -18,40 +21,40 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+function AuthProviderInner({ children }: { children: ReactNode }) {
+  const { data: session, status, update } = useSession();
+  
+  const user = session?.user ? {
+    id: (session.user as any).id,
+    name: session.user.name || "",
+    email: session.user.email || "",
+    role: (session.user as any).role || "CUSTOMER",
+    address: (session.user as any).address || null,
+    image: (session.user as any).image || null,
+  } : null;
+
+  const loading = status === "loading";
 
   async function refreshUser() {
-    try {
-      const res = await fetch("/api/auth/me");
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    await update();
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-    window.location.href = "/";
+    await signOut({ callbackUrl: "/" });
   }
-
-  useEffect(() => {
-    refreshUser();
-  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, refreshUser, logout }}>
       {children}
     </AuthContext.Provider>
+  );
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  return (
+    <SessionProvider>
+      <AuthProviderInner>{children}</AuthProviderInner>
+    </SessionProvider>
   );
 }
 

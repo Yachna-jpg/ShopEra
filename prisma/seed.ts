@@ -76,6 +76,24 @@ async function main() {
       stock: 20,
       categoryId: books.id,
     },
+    {
+      name: "Cashmere Minimalist Crewneck",
+      slug: "cashmere-minimalist-crewneck",
+      description: "Luxurious cashmere crewneck in oatmeal heather.",
+      price: 22000,
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAeNyzws5QeEe-z7PU_LMdrtQqtVJHfUB0WGTcQTGTkKRePb9aA_tHJkK1PYDOQQyijrqZyEgzRK1I9Kxnf65nc7X7SjGCTaB8YYz8IoKM6Eem2wzNDQLBKKZR1zXalD_jKalYihMLrxOCS-rJP6pG4R1Gqzvno9MnkHH1lrCctAaiZ06xWV5U06vQ1dyAlS0m3CYQKF6S2pUzd8CZbxIoIYLbIi9zX8nzPrpzJV_k1xn8f3vYWnPp3",
+      stock: 50,
+      categoryId: clothing.id,
+    },
+    {
+      name: "Oversized Linen Relaxed Blazer",
+      slug: "oversized-linen-relaxed-blazer",
+      description: "Oversized relaxed linen blazer in raw natural flax color.",
+      price: 19500,
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBx36-bjx3I_fI9saNt-4zrzPzBjDCoyHZ4yzNgPCUP3wwXw7Al-2SvAr2tgQOgs_10P8TJfJd2BztANss9IuA5JsBV8ZxKFQnjq4hrvsORf3Op3zF_-vu7BppGz8n21mUC_nbSrzp3qqcBbYWCTlgffJtJ9iFSlT6Bxz5_TkgnF_VgRhejcriXs2wJ_GCY3lXKg5EZh11R0oAxhJZ8LcYHOWJHHhC3jTS45RW1LDMtezADxoCWHsnZ",
+      stock: 30,
+      categoryId: clothing.id,
+    },
   ];
 
   for (const p of products) {

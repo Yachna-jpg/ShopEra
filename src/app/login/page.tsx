@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 export default function Login() {
   const router = useRouter();
@@ -24,23 +25,21 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        showToast(data.error || 'Login failed', 'error');
+      if (result?.error) {
+        showToast(result.error || 'Login failed', 'error');
         setIsLoading(false);
         return;
       }
 
       showToast('Welcome back. Redirecting to your curation...', 'check_circle');
       router.push('/');
-      router.refresh(); // Refresh the layout to update auth state
+      router.refresh();
     } catch (err) {
       showToast('An unexpected error occurred', 'error');
       setIsLoading(false);
@@ -140,7 +139,7 @@ export default function Login() {
                   </div>
                   
                   <div className="grid grid-cols-2 gap-space-sm">
-                    <button className="group h-12 px-space-md rounded-full bg-surface-container-low hover:bg-surface-container transition-colors duration-200 flex items-center justify-center gap-space-sm shadow-sm" type="button">
+                    <button onClick={() => signIn('google', { callbackUrl: '/' })} className="group h-12 px-space-md rounded-full bg-surface-container-low hover:bg-surface-container transition-colors duration-200 flex items-center justify-center gap-space-sm shadow-sm" type="button">
                       <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                         <path d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" fill="#4285F4"></path>
                         <path d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z" fill="#34A853"></path>

@@ -12,7 +12,19 @@ export async function GET() {
     const orders = await prisma.order.findMany({
       where: { userId: user.userId },
       include: {
-        items: { include: { product: { select: { name: true } } } },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                imageUrl: true,
+                price: true,
+                category: { select: { name: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

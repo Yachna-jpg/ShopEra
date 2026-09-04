@@ -32,15 +32,20 @@ export async function PUT(
       return NextResponse.json({ error: "Not enough stock" }, { status: 400 });
     }
 
-    const updated = await prisma.cartItem.update({
+    await prisma.cartItem.update({
       where: { id },
       data: { quantity },
-      include: { product: true },
     });
 
-    return NextResponse.json(updated);
+    const updatedCart = await prisma.cart.findUnique({
+      where: { id: item.cartId },
+      include: { items: { include: { product: true } } },
+    });
+
+    return NextResponse.json(updatedCart || { items: [] });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+    console.error("Cart item PUT error:", error);
+    return NextResponse.json({ error: "Failed to update item" }, { status: 500 });
   }
 }
 
@@ -65,8 +70,15 @@ export async function DELETE(
     }
 
     await prisma.cartItem.delete({ where: { id } });
-    return NextResponse.json({ message: "Item removed" });
+
+    const updatedCart = await prisma.cart.findUnique({
+      where: { id: item.cartId },
+      include: { items: { include: { product: true } } },
+    });
+
+    return NextResponse.json(updatedCart || { items: [] });
   } catch (error) {
-    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    console.error("Cart item DELETE error:", error);
+    return NextResponse.json({ error: "Failed to delete item" }, { status: 500 });
   }
 }
