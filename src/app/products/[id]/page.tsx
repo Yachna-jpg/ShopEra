@@ -64,7 +64,6 @@ export default function ProductDetailPage() {
       .then((data) => {
         setProduct(data);
         setError("");
-        // Fetch related products for recommendations section
         return apiFetch("/api/products");
       })
       .then((allProducts: Product[]) => {
@@ -327,7 +326,6 @@ export default function ProductDetailPage() {
                     {product.name}
                   </h1>
 
-                  {/* Rating & Review Counter */}
                   <div className="flex items-center gap-3 mt-3">
                     <div className="flex items-center gap-1 text-secondary">
                       <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -342,7 +340,6 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                {/* Price Display */}
                 <div className="flex items-baseline gap-3 pt-2 border-t border-outline-variant/20">
                   <span className="font-display-md text-display-md text-on-surface font-bold">
                     ${(product.price / 100).toFixed(2)}
@@ -352,13 +349,12 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
 
-                {/* Description */}
                 <p className="font-body-md text-body-md text-on-surface-variant leading-relaxed">
                   {product.description ||
                     "Artisan lifestyle goods crafted with understated Scandinavian elegance and sustainable materials for daily life."}
                 </p>
 
-                {/* Color Swatch Selection */}
+                {/* Color Selection */}
                 <div className="flex flex-col gap-2 pt-2">
                   <label className="font-label-sm text-label-sm text-on-surface font-bold uppercase tracking-wider">
                     Selected Color: <span className="text-secondary font-normal">{selectedColor}</span>
@@ -413,7 +409,7 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                {/* Reactive Cart Quantity Controller & CTAs */}
+                {/* Cart Controls */}
                 <div className="flex flex-col gap-3 pt-4 border-t border-outline-variant/30">
                   {cartQty > 0 ? (
                     <div className="w-full p-4 rounded-2xl bg-secondary-fixed/20 border border-secondary-fixed/40 flex items-center justify-between">
@@ -434,7 +430,6 @@ export default function ProductDetailPage() {
                           onClick={handleDecrement}
                           disabled={isUpdating}
                           className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors disabled:opacity-50"
-                          title="Decrease"
                           type="button"
                         >
                           <span className="material-symbols-outlined text-[16px]">remove</span>
@@ -444,7 +439,6 @@ export default function ProductDetailPage() {
                           onClick={handleIncrement}
                           disabled={isUpdating || product.stock <= cartQty}
                           className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-on-surface hover:bg-surface-container-lowest transition-colors disabled:opacity-50"
-                          title="Increase"
                           type="button"
                         >
                           <span className="material-symbols-outlined text-[16px]">add</span>
@@ -471,13 +465,13 @@ export default function ProductDetailPage() {
                       type="button"
                     >
                       <span className="material-symbols-outlined text-[20px]">bolt</span>
-                      <span>Buy Now &amp; Checkout</span>
+                      <span>Buy Now & Checkout</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Accordion / Specification Tabs */}
+              {/* Tabs */}
               <div className="bg-surface-container-low p-space-xl rounded-[2.5rem] border border-outline-variant/30 shadow-sm flex flex-col gap-space-md">
                 <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-3">
                   {(["details", "shipping", "sustainability"] as const).map((tab) => (
@@ -508,7 +502,7 @@ export default function ProductDetailPage() {
                   {activeTab === "shipping" && (
                     <ul className="space-y-2 list-disc list-inside">
                       <li>Complimentary express 2-3 business day courier delivery</li>
-                      <li>Tracked dispatch with SMS &amp; email delivery updates</li>
+                      <li>Tracked dispatch with SMS & email delivery updates</li>
                       <li>30 days complimentary exchange or full refund policy</li>
                     </ul>
                   )}
@@ -524,7 +518,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* Related Products Showcase Grid */}
+          {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div className="mt-space-3xl flex flex-col gap-space-lg">
               <div className="flex items-center justify-between">
