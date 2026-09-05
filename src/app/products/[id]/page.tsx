@@ -1,12 +1,7 @@
 "use client";
 
-<<<<<<< Updated upstream
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-=======
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
->>>>>>> Stashed changes
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -35,6 +30,7 @@ const SIZES = ["XS", "S", "M", "L", "XL"];
 export default function ProductDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
 
   const { addToCart, updateItem, getItemInCart } = useCart();
   const { user } = useAuth();
@@ -43,7 +39,6 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-<<<<<<< Updated upstream
   const [selectedColor, setSelectedColor] = useState("Organic Sage");
   const [selectedSize, setSelectedSize] = useState("Medium");
   const [activeTab, setActiveTab] = useState<"details" | "shipping" | "sustainability">("details");
@@ -60,15 +55,6 @@ export default function ProductDetailPage() {
     setToast({ visible: true, message: msg, type });
     setTimeout(() => setToast({ visible: false, message: "", type: "success" }), 4500);
   };
-=======
-  
-  const { addToCart: addToCartContext } = useCart();
-  const [isAdding, setIsAdding] = useState(false);
-  const [addedConfirm, setAddedConfirm] = useState(false);
-
-  const [selectedColor, setSelectedColor] = useState(COLORS[0].hex);
-  const [selectedSize, setSelectedSize] = useState("M");
->>>>>>> Stashed changes
 
   useEffect(() => {
     if (!id) return;
@@ -94,26 +80,11 @@ export default function ProductDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-<<<<<<< Updated upstream
   const handleAddToCart = async () => {
     if (!product) return;
     if (!user) {
       showToast("Please log in to add items to your bag", "login");
       return;
-=======
-  async function addToCart() {
-    if (!product || isAdding) return;
-
-    setIsAdding(true);
-    try {
-      await addToCartContext(product.id);
-      setAddedConfirm(true);
-      setTimeout(() => setAddedConfirm(false), 3000);
-    } catch (e: any) {
-      alert(e.message || 'Failed to add to bag');
-    } finally {
-      setIsAdding(false);
->>>>>>> Stashed changes
     }
     if (isUpdating) return;
     setIsUpdating(true);
@@ -182,7 +153,6 @@ export default function ProductDetailPage() {
     }
   };
 
-<<<<<<< Updated upstream
   if (loading) {
     return <LuxurySkeleton type="product" />;
   }
@@ -218,26 +188,10 @@ export default function ProductDetailPage() {
             </Link>
           </div>
         </div>
-=======
-  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    gsap.to(e.currentTarget, { scale: 0.98, duration: 0.1 });
-  };
-  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
-    gsap.to(e.currentTarget, { scale: 1, duration: 0.2, ease: "power2.out" });
-  };
-
-  if (loading) return <div className="min-h-screen bg-[#F7F5F0]"><LoadingSpinner text="Loading product..." /></div>;
-  if (error || !product) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20 min-h-screen bg-[#F7F5F0]">
-        <p className="text-red-600">{error || "Product not found"}</p>
-        <Link href="/" className="text-blue-600 hover:underline">Back to Home</Link>
->>>>>>> Stashed changes
       </div>
     );
   }
 
-<<<<<<< Updated upstream
   return (
     <>
       {/* Toast Feedback Notification Card */}
@@ -601,278 +555,5 @@ export default function ProductDetailPage() {
         </div>
       </div>
     </>
-=======
-  // Derived mock data for beautiful UI representation
-  const originalPrice = product.price + 2000; // Mock original price 20$ higher
-  const thumbnails = [
-    product.imageUrl || "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800",
-    "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800",
-    "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800"
-  ];
-
-  return (
-    <div className="min-h-screen bg-[#F7F5F0] text-[#1A1A1A] font-sans selection:bg-[#E8C2B3] selection:text-[#7A4027] pb-24">
-      {/* Top Main Section */}
-      <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-20">
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
-          
-          {/* Left: Image Gallery (55%) */}
-          <div className="lg:w-[55%] flex gap-4 md:gap-6 h-[600px] md:h-[800px]">
-            {/* Thumbnails */}
-            <div className="hidden md:flex flex-col gap-4 w-20 shrink-0">
-              {thumbnails.map((img, i) => (
-                <div key={i} className={`w-20 h-24 rounded-lg overflow-hidden border ${i === 0 ? 'border-gray-800' : 'border-transparent'} opacity-${i === 0 ? '100' : '60'} hover:opacity-100 transition-opacity cursor-pointer`}>
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                </div>
-              ))}
-              <div className="mt-4 text-[10px] uppercase tracking-widest text-center text-gray-400 font-medium">
-                100% Raw<br/>Mongolian<br/>Cashmere
-              </div>
-            </div>
-            {/* Main Image */}
-            <div className="flex-1 relative rounded-2xl overflow-hidden bg-[#ebe8e0]">
-              <img src={thumbnails[0]} alt={product.name} className="w-full h-full object-cover" />
-              <div className="absolute top-6 left-6 bg-white/90 backdrop-blur-sm px-4 py-1.5 rounded-full text-[11px] uppercase tracking-[0.08em] font-medium text-gray-800 shadow-sm">
-                Maison Capsule • No. 04
-              </div>
-              <button className="absolute top-6 right-6 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-sm">
-                <span className="material-symbols-outlined text-[18px]">favorite</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Product Info (45%) */}
-          <div className="lg:w-[45%] flex flex-col pt-4 md:pt-10">
-            {/* Eyebrow & Title */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] uppercase tracking-[0.08em] text-gray-500 font-medium">Limited Release • Autumn / Winter</span>
-              <div className="flex items-center gap-1 bg-[#F0EBE1] px-2 py-1 rounded-full">
-                <span className="material-symbols-outlined text-[14px] text-[#D4A373]">star</span>
-                <span className="text-[11px] font-medium text-gray-700">4.9 (128 reviews)</span>
-              </div>
-            </div>
-            <h1 className="text-[32px] md:text-[36px] font-medium leading-tight text-[#1A1A1A] mb-6 tracking-tight">
-              {product.name}
-            </h1>
-
-            {/* Price */}
-            <div className="flex items-center gap-4 mb-8">
-              <span className="text-[24px] font-bold text-[#1A1A1A]">${(product.price / 100).toFixed(2)}</span>
-              <span className="text-[16px] text-gray-400 line-through">${(originalPrice / 100).toFixed(2)}</span>
-              <span className="bg-[#E8C2B3] text-[#7A4027] text-[12px] font-bold px-2 py-1 rounded">Save 20%</span>
-            </div>
-
-            {/* Description */}
-            <p className="text-[15px] leading-[1.6] text-[#4A4A4A] mb-8 pr-4">
-              {product.description || "Spun from Grade-A Inner-Mongolian raw cashmere with structured raglan sleeves, storm flap accents, and double-breasted horn closures. Designed to drape effortlessly through transitions."}
-            </p>
-
-            {/* Color Selector */}
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[13px] font-medium text-[#1A1A1A]">Color: <span className="text-gray-500 font-normal">{COLORS.find(c => c.hex === selectedColor)?.name}</span></span>
-                <span className="text-[11px] text-gray-400">Natural Plant-Dye Wash</span>
-              </div>
-              <div className="flex gap-3">
-                {COLORS.map((c) => (
-                  <button
-                    key={c.hex}
-                    onClick={() => setSelectedColor(c.hex)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${selectedColor === c.hex ? 'ring-1 ring-offset-2 ring-[#1A1A1A]' : 'ring-1 ring-gray-200'}`}
-                  >
-                    <span className="w-full h-full rounded-full border border-black/10" style={{ backgroundColor: c.hex }}></span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Size Selector */}
-            <div className="mb-8">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[13px] font-medium text-[#1A1A1A]">Size: <span className="text-gray-500 font-normal">{selectedSize} (US 4-6)</span></span>
-                <button className="text-[12px] text-gray-500 hover:text-black underline underline-offset-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">straighten</span> Size Guide
-                </button>
-              </div>
-              <div className="grid grid-cols-5 gap-2">
-                {SIZES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setSelectedSize(s)}
-                    className={`h-[44px] flex items-center justify-center rounded-lg text-[13px] font-medium transition-colors ${
-                      selectedSize === s 
-                        ? 'bg-[#1A1A1A] text-white' 
-                        : 'bg-white border border-gray-200 text-[#1A1A1A] hover:border-gray-400'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Stock Notice */}
-            <div className="bg-[#F0EBE1] rounded-lg p-3 flex items-center gap-2 mb-8 border border-[#E3DCCF]">
-              <div className="w-2 h-2 rounded-full bg-[#8A5A44]"></div>
-              <span className="text-[13px] text-gray-700">In stock — <span className="font-semibold text-[#8A5A44]">Only {product.stock} remaining</span> in size {selectedSize}</span>
-            </div>
-
-            {/* CTA */}
-            <button
-              onClick={addToCart}
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
-              disabled={isAdding || product.stock === 0}
-              className="w-full h-[52px] bg-[#1A1A1A] text-white rounded-[8px] font-medium text-[15px] flex items-center justify-center gap-2 hover:bg-black transition-colors disabled:opacity-70 disabled:cursor-not-allowed mb-6"
-            >
-              {isAdding ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : addedConfirm ? (
-                <>
-                  <span className="material-symbols-outlined text-[18px]">check</span>
-                  Added to Bag — ${(product.price / 100).toFixed(2)}
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
-                  Add to Bag — ${(product.price / 100).toFixed(2)}
-                </>
-              )}
-            </button>
-
-            {/* Micro Info Strip */}
-            <div className="grid grid-cols-3 gap-4 py-4 border-t border-gray-200 mt-auto">
-              <div className="flex flex-col items-center text-center gap-1">
-                <span className="material-symbols-outlined text-[20px] text-gray-500">local_shipping</span>
-                <span className="text-[11px] font-medium text-gray-800">Free Express</span>
-                <span className="text-[10px] text-gray-500">2-3 Business Days</span>
-              </div>
-              <div className="flex flex-col items-center text-center gap-1">
-                <span className="material-symbols-outlined text-[20px] text-gray-500">keyboard_return</span>
-                <span className="text-[11px] font-medium text-gray-800">30-Day Returns</span>
-                <span className="text-[10px] text-gray-500">Complimentary Label</span>
-              </div>
-              <div className="flex flex-col items-center text-center gap-1">
-                <span className="material-symbols-outlined text-[20px] text-gray-500">eco</span>
-                <span className="text-[11px] font-medium text-gray-800">Sustainable Cert</span>
-                <span className="text-[10px] text-gray-500">Organic Cashmere</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* Craft & Origin Section */}
-      <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-16 md:py-24">
-        <div className="flex flex-col md:flex-row gap-6 h-auto md:h-[380px]">
-          {/* Main info card */}
-          <div className="md:w-[65%] bg-[#F0EBE1] rounded-2xl p-8 md:p-12 flex flex-col justify-between">
-            <div>
-              <span className="text-[11px] uppercase tracking-[0.08em] text-[#8A5A44] font-bold mb-4 block">Craft & Origin</span>
-              <h2 className="text-[24px] md:text-[28px] font-medium text-[#1A1A1A] leading-tight mb-6 max-w-xl">
-                Spun from renewable Mongolian underfleece, combed by hand at seasonal shedding.
-              </h2>
-              <p className="text-[15px] text-[#4A4A4A] leading-relaxed max-w-2xl">
-                Each trench requires 32 hours of single-needle hand tailoring in our ethical atelier. Double-faced weaving creates structured drape without synthetic interfacings, allowing the coat to insulate naturally against seasonal chill.
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-6 mt-12 pt-8 border-t border-[#E3DCCF]">
-              <div>
-                <p className="text-[20px] font-bold text-[#1A1A1A]">480 g/m²</p>
-                <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">Fabric Weight</p>
-              </div>
-              <div>
-                <p className="text-[20px] font-bold text-[#1A1A1A]">15.5 μm</p>
-                <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">Fiber Fineness</p>
-              </div>
-              <div>
-                <p className="text-[20px] font-bold text-[#1A1A1A]">Zero</p>
-                <p className="text-[11px] text-gray-500 mt-1 uppercase tracking-wider">Synthetic Additives</p>
-              </div>
-            </div>
-          </div>
-          {/* Certification Card */}
-          <div className="md:w-[35%] bg-[#E2EBE5] rounded-2xl p-8 md:p-12 flex flex-col">
-            <span className="material-symbols-outlined text-[32px] text-[#4A6353] mb-6">verified_user</span>
-            <h3 className="text-[20px] font-medium text-[#1A1A1A] leading-tight mb-4">Ethical Cashmere Standard certified</h3>
-            <p className="text-[14px] text-[#4A6353] leading-relaxed mb-auto">
-              Traceable to nomadic herder cooperatives committed to regenerative grazing and grassland preservation in the Alashan plateau.
-            </p>
-            <div className="mt-8 pt-6 border-t border-[#C8D6CD]">
-              <p className="text-[11px] font-bold text-[#4A6353] tracking-wide">Certificate ID: GOTS-EC-89104 • Verified</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Complete the Look Section */}
-      <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-20 border-t border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
-          <div>
-            <span className="text-[11px] uppercase tracking-[0.08em] text-[#8A5A44] font-bold mb-2 block">Curated Ensemble</span>
-            <h2 className="text-[28px] md:text-[32px] font-medium text-[#1A1A1A]">Complete the Look</h2>
-          </div>
-          <p className="text-[14px] text-gray-500 max-w-xs mt-4 md:mt-0 text-right hidden md:block">
-            Harmonized silhouettes selected by our editorial team to complement the warm oatmeal drape of the coat.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            {
-              name: "Raw Silk Ribbed Turtleneck",
-              color: "Alabaster Cream",
-              price: 240,
-              label: "Base Layer",
-              image: thumbnails[0]
-            },
-            {
-              name: "Pleated Wide-Leg Trousers",
-              color: "Muted Sage Twill",
-              price: 320,
-              label: "Bottom",
-              image: thumbnails[0]
-            },
-            {
-              name: "Sculpted Saddle Bag",
-              color: "Calfskin in Espresso Brown",
-              price: 510,
-              label: "Accessory",
-              image: "" // Placeholder box
-            }
-          ].map((item, i) => (
-            <div key={i} className="group cursor-pointer">
-              <div className="relative aspect-[3/4] bg-[#F0EBE1] rounded-xl overflow-hidden mb-4 border border-transparent group-hover:border-gray-300 transition-colors">
-                {item.image ? (
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-[#8A5A44]/40">
-                    <span className="material-symbols-outlined text-[48px] mb-4">shopping_bag</span>
-                    <span className="text-[14px] font-medium">{item.name}</span>
-                  </div>
-                )}
-                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[11px] font-medium text-gray-800">
-                  {item.label}
-                </div>
-              </div>
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="text-[14px] font-medium text-[#1A1A1A]">{item.name}</h4>
-                  <p className="text-[12px] text-gray-500 mt-1">{item.color}</p>
-                </div>
-                <span className="text-[14px] font-medium text-[#1A1A1A]">${item.price}</span>
-              </div>
-              <button className="mt-4 w-full h-[40px] bg-[#E8E6E1] text-[#1A1A1A] hover:bg-gray-300 transition-colors rounded-lg text-[13px] font-medium">
-                Quick Add - Size M
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-    </div>
->>>>>>> Stashed changes
   );
 }
