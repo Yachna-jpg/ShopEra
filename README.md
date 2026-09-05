@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ShopEra 🛍️
 
-## Getting Started
+ShopEra is a modern, premium e-commerce web application built with the latest web technologies. It features a stunning user interface, seamless shopping experience, and robust backend integrations.
 
-First, run the development server:
+## 🔗 Demo
+https://shop-era-7c4u-5i0hfb4uk-yachna-jpgs-projects.vercel.app/
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Premium UI/UX:** A beautifully crafted, responsive design featuring high-quality aesthetics, smooth transitions, and intuitive layouts.
+- **Full E-Commerce Flow:** Browse products, view detailed product pages (with color/size selection), and manage your shopping bag.
+- **Secure Authentication:** User login and registration powered by NextAuth, including session management and protected routes.
+- **Stripe Checkout:** Seamless and secure payment processing using Stripe.
+- **Wishlist & Cart Management:** Real-time state management for saving favorite items and managing cart quantities.
+- **Admin Dashboard:** Manage products and track orders directly from an integrated admin panel.
+- **SEO Optimized:** Built with best practices to ensure high search engine visibility.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Framework:** [Next.js](https://nextjs.org/) (App Router, React, TypeScript)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+- **Database:** PostgreSQL with [Prisma ORM](https://www.prisma.io/)
+- **Authentication:** [NextAuth.js](https://next-auth.js.org/)
+- **Payments:** [Stripe](https://stripe.com/)
 
-## Learn More
+## 🚀 Getting Started
 
-To learn more about Next.js, take a look at the following resources:
+Follow these instructions to set up the project locally.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prerequisites
+- Node.js (v18 or higher)
+- A PostgreSQL database
+- A Stripe account (for payment processing)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Installation
 
-## Deploy on Vercel
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd shopera
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Set up Environment Variables:**
+   Create a `.env` file in the root directory and add the necessary environment variables:
+   ```env
+   DATABASE_URL="postgresql://user:password@localhost:5432/shopera"
+   NEXTAUTH_SECRET="your_nextauth_secret"
+   NEXTAUTH_URL="http://localhost:3000"
+   STRIPE_SECRET_KEY="your_stripe_secret_key"
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
+   STRIPE_WEBHOOK_SECRET="your_stripe_webhook_secret"
+   ```
+
+4. **Initialize the Database:**
+   Generate the Prisma client and push the schema to your database.
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+   *(Optional)* Run the seed script if you have one to populate initial data:
+   ```bash
+   npm run prisma:seed
+   ```
+
+5. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+
+## 📂 Project Structure
+
+- `src/app/` - Next.js App Router pages and API routes.
+- `src/components/` - Reusable React components (UI elements, Layout, Skeletons).
+- `src/context/` - Global state management (CartContext, AuthContext).
+- `src/lib/` - Utility functions, API helpers, and validation schemas.
+- `prisma/` - Database schema and configuration.
+
+## 📄 License
+
+This project is licensed under the MIT License.
